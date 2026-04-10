@@ -1,15 +1,16 @@
 """Orchestrator: fetch electricity prices, weather, and SolMate state, then apply optimized profile."""
 
-import argparse
 import datetime
 import os
 import sys
 
+import click
 import httpx
 from solmate_sdk import SolMateAPIClient
 from solmate_sdk.utils import DATETIME_FORMAT_INJECTION_PROFILES
 
 from solmate_optimizer.logic import MAX_WATTS, HourlyProfile, compute_profile, _quantile, _sun_expected
+from solmate_optimizer.plot import plot_profile
 
 AWATTAR_URL = "https://api.awattar.at/v1/marketdata"
 OWM_CURRENT_URL = "https://api.openweathermap.org/data/2.5/weather"
@@ -105,49 +106,6 @@ def connect_solmate(serial: str, password: str) -> SolMateAPIClient:
     return client
 
 
-def _block(val: float) -> str:
-    """Map a fraction 0-1 to a 2-char-wide block. Thresholds tuned for 800W max."""
-    if val <= 0:
-        return "  "
-    elif val <= 0.04:   # ~30W
-        return "░░"
-    elif val <= 0.08:   # ~60W
-        return "▒▒"
-    elif val <= 0.15:   # ~120W
-        return "▓▓"
-    else:               # >120W
-        return "██"
-
-
-def print_profile_bar(label: str, values: list[float], current_hour: int) -> None:
-    """Print a 24-hour profile as a 2-char-wide-per-hour ASCII bar."""
-    bar = ""
-    for h in range(24):
-        bar += _block(values[h])
-    print(f"  {label}  {bar}")
-
-
-def print_profile_art(label: str, min_val: list[float], max_val: list[float], current_hour: int) -> None:
-    """Print a compact 2-row ASCII art of a 24h min/max profile."""
-    # Hour labels row
-    hours = ""
-    for h in range(24):
-        if h % 3 == 0:
-            hours += f"{h:<2d}"
-        else:
-            hours += "  "
-    # Marker row: * under current hour
-    markers = ""
-    for h in range(24):
-        if h == current_hour:
-            markers += "* "
-        else:
-            markers += "  "
-    print(f"  {label}")
-    print_profile_bar("max", max_val, current_hour)
-    print_profile_bar("min", min_val, current_hour)
-    print(f"        {markers}")
-    print(f"        {hours}")
 
 
 def parse_latlon(value: str) -> tuple[float, float]:
@@ -200,18 +158,11 @@ def print_decision(profile: HourlyProfile, prices: dict[int, float], clouds_now:
     print()
 
 
-def parse_args() -> argparse.Namespace:
-    """Parse command-line arguments."""
-    parser = argparse.ArgumentParser(description="SolMate injection profile optimizer")
-    parser.add_argument("--dry-run", action="store_true",
-                        help="Compute and display profile, but don't write or activate it")
-    parser.add_argument("--no-activate", action="store_true",
-                        help="Write the profile to SolMate, but don't activate it")
-    return parser.parse_args()
-
-
-def main():
-    args = parse_args()
+@click.command()
+@click.option("--dry-run", is_flag=True, help="Compute and display profile, but don't write or activate it")
+@click.option("--no-activate", is_flag=True, help="Write the profile to SolMate, but don't activate it")
+def optimize(dry_run: bool, no_activate: bool):
+    """Run the SolMate injection profile optimizer."""
 
     # --- Load config from env ---
     serial = os.environ.get("SOLMATE_SERIAL")
@@ -281,7 +232,7 @@ def main():
     current_hour = datetime.datetime.now().hour
     if profile_name in existing_profiles:
         cur = existing_profiles[profile_name]
-        print_profile_art(f"Current '{profile_name}':", cur["min"], cur["max"], current_hour)
+        plot_profile(f"Current '{profile_name}'", cur["min"], cur["max"], current_hour)
 
     # --- Compute profile ---
     profile = compute_profile(prices, clouds_now, clouds_by_hour, current_hour, battery_state)
@@ -296,7 +247,7 @@ def main():
     # --- Print decision ---
     print_decision(profile, prices, clouds_now, clouds_by_hour, battery_state, profile_name)
 
-    print_profile_art(f"New '{profile_name}':", profile.min_val, profile.max_val, current_hour)
+    plot_profile(f"New '{profile_name}'", profile.min_val, profile.max_val, current_hour)
 
     # --- Check if profile actually changed ---
     changed = True
@@ -305,7 +256,7 @@ def main():
         if cur["min"] == profile.min_val and cur["max"] == profile.max_val:
             changed = False
 
-    if args.dry_run:
+    if dry_run:
         if changed:
             print("Dry run — profile CHANGED but not written (--dry-run).")
         else:
@@ -330,7 +281,7 @@ def main():
         print(f"Failed to write profile: {e}", file=sys.stderr)
         sys.exit(1)
 
-    if args.no_activate:
+    if no_activate:
         print(f"Profile '{profile_name}' written but not activated (--no-activate).")
         return
 

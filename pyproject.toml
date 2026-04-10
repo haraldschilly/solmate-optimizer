@@ -11,7 +11,13 @@ license = "Apache-2.0"
 dependencies = [
     "solmate-sdk",
     "httpx",
+    "click",
+    "plotext>=5.3.2",
 ]
+
+[project.scripts]
+solmate = "solmate_optimizer.__main__:cli"
+status = "solmate_optimizer.status:status"
 
 [build-system]
 requires = ["uv_build>=0.10.10,<1"]

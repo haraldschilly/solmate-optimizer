@@ -82,15 +82,24 @@ All configuration is via environment variables:
 export SOLMATE_SERIAL="your-serial"
 export SOLMATE_PASSWORD="your-password"
 export OWM_API_KEY="your-owm-key"
-uv run python -m solmate_optimizer
+
+uv run solmate                       # run optimizer (default)
+uv run solmate optimize --dry-run    # compute profile, don't write
+uv run solmate optimize --no-activate  # write but don't activate
+uv run status                        # read-only status view
+uv run status --graph                # status with ASCII profile graphs
 ```
 
-### Flags
+### Commands
 
-| Flag | Description |
-|------|-------------|
-| `--dry-run` | Compute and display profile, but don't write or activate it |
-| `--no-activate` | Write the profile to SolMate, but don't activate it |
+| Command | Description |
+|---------|-------------|
+| `solmate` | Run the optimizer (default, no subcommand needed) |
+| `solmate optimize` | Explicit optimizer subcommand |
+| `solmate optimize --dry-run` | Compute and display profile, but don't write or activate it |
+| `solmate optimize --no-activate` | Write the profile to SolMate, but don't activate it |
+| `status` | Show live values and injection profiles (read-only, no OWM/aWATTar needed) |
+| `status --graph` | Same, with ASCII art visualization of each profile |
 
 ### Example output
 
