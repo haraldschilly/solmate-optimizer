@@ -8,4 +8,4 @@ COPY src/ src/
 
 RUN uv sync --no-dev
 
-CMD ["uv", "run", "python", "-m", "solmate_optimizer"]
+CMD ["uv", "run", "solmate"]
