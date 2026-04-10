@@ -1,0 +1,18 @@
+[project]
+name = "solmate-optimizer"
+version = "0.1.0"
+description = "Dynamically adjusts EET SolMate injection profile based on hourly electricity price and weather forecast"
+readme = "README.md"
+authors = [
+    { name = "Harald Schilly", email = "harald.schilly@gmail.com" }
+]
+requires-python = ">=3.13"
+license = "Apache-2.0"
+dependencies = [
+    "solmate-sdk",
+    "httpx",
+]
+
+[build-system]
+requires = ["uv_build>=0.10.10,<1"]
+build-backend = "uv_build"
