@@ -56,12 +56,36 @@ Priority 4 is intentionally skipped during nighttime: there is no solar producti
 
 Price-based rules (priorities 1 and 2) always win over battery protection: even a low battery should not inject when prices are negative or very cheap.
 
-## Setup
+## Install
 
-Requires Python 3.13+ and [uv](https://docs.astral.sh/uv/).
+Requires Python 3.13+.
+
+### Option A — run without installing (recommended for quick use)
+
+With [uv](https://docs.astral.sh/uv/) installed, run the latest version directly — no clone, no virtualenv:
 
 ```bash
+uvx solmate-optimizer@latest                     # run optimizer
+uvx --from solmate-optimizer@latest status       # read-only status view
+```
+
+`uvx` fetches the package from PyPI into an ephemeral environment on first run and caches it for later invocations. Use `@latest` to always get the newest release, or pin to a specific version (e.g. `solmate-optimizer@0.2.0`).
+
+### Option B — install via pip
+
+```bash
+pip install solmate-optimizer
+solmate           # run optimizer
+status            # read-only status view
+```
+
+### Option C — from source (for development)
+
+```bash
+git clone https://github.com/haraldschilly/solmate-optimizer.git
+cd solmate-optimizer
 uv sync
+uv run solmate
 ```
 
 ## Configuration
@@ -83,17 +107,21 @@ All configuration is via environment variables:
 
 ## Run
 
+Set the required credentials in the environment, then invoke either the installed entry point (Option A/B above) or `uv run` when working from source (Option C):
+
 ```bash
 export SOLMATE_SERIAL="your-serial"
 export SOLMATE_PASSWORD="your-password"
 export OWM_API_KEY="your-owm-key"
 
-uv run solmate                       # run optimizer (default)
-uv run solmate optimize --dry-run    # compute profile, don't write
-uv run solmate optimize --no-activate  # write but don't activate
-uv run status                        # read-only status view
-uv run status --graph                # status with ASCII profile graphs
+solmate                         # run optimizer (default)
+solmate optimize --dry-run      # compute profile, don't write
+solmate optimize --no-activate  # write but don't activate
+status                          # read-only status view
+status --graph                  # status with plotext profile graphs
 ```
+
+When using `uvx`, prefix with `uvx solmate-optimizer@latest` (and `uvx --from solmate-optimizer@latest status` for the status command). When working from a checkout, prefix with `uv run`.
 
 ### Commands
 
