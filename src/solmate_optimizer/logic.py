@@ -8,7 +8,8 @@ Decision priority:
   1. Price < 0 (negative) → never inject, grid is paying consumers to take power (0/0)
   2. Price < P25 of 24h prices → don't inject, electricity is cheap (0/0)
   3. Battery critically low → protect battery (0/50W)
-  4. Price > P75 AND battery OK AND sun expected → inject hard (100/200W)
+  4. Price > P75 AND battery OK AND sun expected → inject hard (200/400W)
+  4. Price > P75 AND battery OK but no sun coming → inject moderately (100/200W)
   5. Middle prices → moderate injection based on time of day
 
 Price-based rules (1 and 2) always win over battery protection: even a low battery

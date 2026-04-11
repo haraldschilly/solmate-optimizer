@@ -14,7 +14,7 @@ All source code, variable names, docstrings, comments, and output must be in Eng
 
 ```bash
 # Run the optimizer (one-shot, meant to be called hourly)
-uv run python -m solmate_optimizer
+uv run solmate
 
 # Install/sync dependencies
 uv sync
