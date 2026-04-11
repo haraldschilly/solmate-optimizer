@@ -57,3 +57,30 @@ Profile values are fractions 0.0–1.0 of max capacity (e.g., 0.125 = 100W at 80
 ## Environment Variables
 
 See the [README](README.md#configuration) for the full list of required and optional env vars.
+
+## Release Process (PyPI)
+
+Releases are triggered by pushing a `v*` tag. GitHub Actions builds and publishes via OIDC trusted publishing — no API token needed.
+
+### One-time PyPI setup (already done after first release)
+1. pypi.org → Account Settings → Publishing → "Add a new pending publisher"
+   - Project: `solmate-optimizer`, Owner: `haraldschilly`, Repo: `solmate-optimizer`
+   - Workflow: `release.yml`, Environment: `release`
+2. GitHub repo → Settings → Environments → create `release` (empty is fine)
+
+### Per-release steps
+```bash
+# 1. Bump version in pyproject.toml (e.g. 0.1.0 → 0.2.0)
+# 2. Sync lockfile
+uv sync
+
+# 3. Commit
+git add pyproject.toml uv.lock   # uv.lock is gitignored here, skip if so
+git commit -m "Release v0.2.0"
+
+# 4. Tag and push — this triggers the GitHub Actions release workflow
+git tag v0.2.0
+git push origin main v0.2.0
+```
+
+The workflow (`.github/workflows/release.yml`) runs on any `v*` tag, builds with `uv build`, and publishes to PyPI.
