@@ -42,12 +42,9 @@ Profile API pattern:
 3. `client.set_injection_profiles(profiles, timestamp)` — writes all profiles
 4. `client.apply_injection_profile(name)` — activates it
 
-## Decision Logic Priority (price-driven)
+## Decision Logic
 
-1. **Battery < 25%** — protect battery: 0/50W regardless
-2. **Price < P25** of 24h prices — electricity cheap, don't inject (0/0)
-3. **Price > P75 + battery OK + sun expected** — inject hard (100/200W); if no sun coming: cautious (30/100W)
-4. **Middle prices** — time-of-day fallback: night 20/50W, daytime 0/50W, evening 50/120W
+The decision engine is price-driven. For the full priority table and watt levels see `src/solmate_optimizer/logic.py` (module docstring + inline comments) and the README decision table.
 
 Profile values are fractions 0.0–1.0 of max capacity (e.g., 0.125 = 100W at 800W max).
 
