@@ -43,14 +43,16 @@ The optimizer is **price-driven** — electricity prices already encode weather,
 
 | Priority | Condition | Injection | Reasoning |
 |----------|-----------|-----------|-----------|
-| 1 | Price < 0 (negative) | 0W | Grid pays consumers to take power — never inject |
-| 2 | Price below P25 of 24h | 0W | Electricity is cheap, save battery for when it matters |
-| 3 | Battery < 25% | 0–50W | Protect battery regardless of price |
-| 4 | Price above P75 + battery OK + sun expected | 200–400W | Inject hard when it pays off and battery can recharge |
-| 4 | Price above P75 but no sun coming | 100–200W | Price is high but can't recharge — be cautious |
-| 5 | Middle prices, night (0–7, 22–24) | 20–50W | Baseload (fridge, standby) |
-| 5 | Middle prices, daytime (7–18) | 0–50W | Let PV charge the battery |
-| 5 | Middle prices, evening (18–22) | 50–120W | Cover active household consumption |
+| 1 | Price < 0 (negative) | 0 W | Grid pays consumers to take power — never inject |
+| 2 | Price below P25 of 24 h | 0 W | Electricity is cheap, save battery for when it matters |
+| 3 | Battery < 25 % | 0–50 W | Protect battery regardless of price |
+| 4 | Price above P75 + battery OK + sun expected + not nighttime | 200–400 W | Inject hard when it pays off and battery can recharge |
+| 4 | Price above P75 + battery OK + no sun + not nighttime | 100–200 W | Price is high but can't recharge — be cautious |
+| 5 | Middle prices, night (default 23:00–07:59) | 20–50 W | Baseload (fridge, standby); no solar production |
+| 5 | Middle prices, daytime (default 08:00–17:59) | 0–50 W | Let PV charge the battery |
+| 5 | Middle prices, evening (default 18:00–22:59) | 50–120 W | Cover active household consumption |
+
+Priority 4 is intentionally skipped during nighttime: there is no solar production overnight, so injecting aggressively would drain the battery before the sun rises. The nighttime window defaults to 23:00–07:59 and is configurable via the `NIGHTTIME` environment variable.
 
 Price-based rules (priorities 1 and 2) always win over battery protection: even a low battery should not inject when prices are negative or very cheap.
 
@@ -77,6 +79,7 @@ All configuration is via environment variables:
 | `BATTERY_LOW_THRESHOLD` | no | `0.25` | Battery fraction (0–1) below which injection is throttled |
 | `CLOUD_SUN_THRESHOLD` | no | `60` | Forecast cloud % below which "sun expected" for recharging |
 | `MAX_WATTS` | no | `800` | SolMate max injection capacity in watts |
+| `NIGHTTIME` | no | `23,8` | Nighttime window as `start,end`: start hour is inclusive, end hour is exclusive. The window wraps around midnight — `23,8` means 23:00–07:59. High injection (priority 4) is blocked and baseload values apply during this window. |
 
 ## Run
 

@@ -48,6 +48,12 @@ The decision engine is price-driven. For the full priority table and watt levels
 
 Profile values are fractions 0.0–1.0 of max capacity (e.g., 0.125 = 100W at 800W max).
 
+**Docs sync rule:** whenever `logic.py` changes (priorities, watt levels, hour boundaries, new conditions), you **must** update both:
+1. The module docstring at the top of `logic.py` — the "Decision priority" block.
+2. The "Decision logic" table in `README.md`.
+
+These three sources (code, docstring, README) must always agree.
+
 ## External APIs
 
 - **aWATTar:** `GET https://api.awattar.at/v1/marketdata` — no auth, returns EUR/MWh (÷10 = ct/kWh)

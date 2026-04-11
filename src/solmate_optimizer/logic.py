@@ -8,9 +8,12 @@ Decision priority:
   1. Price < 0 (negative) → never inject, grid is paying consumers to take power (0/0)
   2. Price < P25 of 24h prices → don't inject, electricity is cheap (0/0)
   3. Battery critically low → protect battery (0/50W)
-  4. Price > P75 AND battery OK AND sun expected → inject hard (200/400W)
-  4. Price > P75 AND battery OK but no sun coming → inject moderately (100/200W)
-  5. Middle prices → moderate injection based on time of day
+  4. Price > P75 AND battery OK AND sun expected AND not nighttime → inject hard (200/400W)
+  4. Price > P75 AND battery OK but no sun coming AND not nighttime → inject moderately (100/200W)
+     (nighttime skips priority 4 entirely — no solar production, battery must be preserved)
+  5. Middle prices, night (default 23:00–07:59, set via NIGHTTIME) → baseload (20/50W)
+  5. Middle prices, daytime (default 08:00–17:59) → let PV charge (0/50W)
+  5. Middle prices, evening (default 18:00–22:59) → cover household consumption (50/120W)
 
 Price-based rules (1 and 2) always win over battery protection: even a low battery
 should not inject when prices are negative or very cheap.
@@ -24,6 +27,12 @@ from dataclasses import dataclass
 BATTERY_LOW_THRESHOLD = float(os.environ.get("BATTERY_LOW_THRESHOLD", "0.25"))
 CLOUD_SUN_THRESHOLD = int(os.environ.get("CLOUD_SUN_THRESHOLD", "60"))
 MAX_WATTS = float(os.environ.get("MAX_WATTS", "800.0"))
+
+# NIGHTTIME="start,end": first nighttime hour (inclusive) and first morning hour (exclusive).
+# The window wraps around midnight, e.g. "23,8" → hours 23, 0, 1, 2, 3, 4, 5, 6, 7.
+_nt_start_str, _nt_end_str = os.environ.get("NIGHTTIME", "23,8").split(",")
+NIGHTTIME_START = int(_nt_start_str)  # inclusive
+NIGHTTIME_END = int(_nt_end_str)      # exclusive
 
 
 @dataclass
@@ -46,6 +55,15 @@ def _quantile(values: list[float], q: float) -> float:
     hi = min(lo + 1, len(sorted_v) - 1)
     frac = idx - lo
     return sorted_v[lo] * (1 - frac) + sorted_v[hi] * frac
+
+
+def _is_night_hour(hour: int) -> bool:
+    """Return True if *hour* falls in the configured nighttime window.
+
+    The window wraps around midnight: NIGHTTIME_START is inclusive,
+    NIGHTTIME_END is exclusive. Default "23,8" → hours 23, 0–7.
+    """
+    return hour >= NIGHTTIME_START or hour < NIGHTTIME_END
 
 
 def _sun_expected(clouds_by_hour: dict[int, int]) -> bool:
@@ -119,7 +137,9 @@ def compute_profile(
             continue
 
         # --- Priority 4: Price above P75 → inject hard if battery OK + sun expected ---
-        if price is not None and p75 is not None and price >= p75 and battery_ok:
+        # Never inject hard during nighttime: no solar production,
+        # draining the battery overnight leaves nothing for daytime recharging.
+        if price is not None and p75 is not None and price >= p75 and battery_ok and not _is_night_hour(hour):
             if sun_coming:
                 min_val[hour] = _frac(200)
                 max_val[hour] = _frac(400)
@@ -132,8 +152,8 @@ def compute_profile(
             continue
 
         # --- Priority 5: Middle prices → moderate, time-of-day based ---
-        is_night = 0 <= hour < 7 or 22 <= hour < 24
-        is_evening = 18 <= hour < 22
+        is_night = _is_night_hour(hour)
+        is_evening = 18 <= hour < NIGHTTIME_START
 
         if is_night:
             min_val[hour] = _frac(20)
