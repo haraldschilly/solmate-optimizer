@@ -119,7 +119,10 @@ def compute_profile(
             continue
 
         # --- Priority 4: Price above P75 → inject hard if battery OK + sun expected ---
-        if price is not None and p75 is not None and price >= p75 and battery_ok:
+        # Never inject hard during nighttime (23:00–07:59): no solar production,
+        # draining the battery overnight leaves nothing for daytime recharging.
+        is_nighttime = hour < 8 or hour >= 23
+        if price is not None and p75 is not None and price >= p75 and battery_ok and not is_nighttime:
             if sun_coming:
                 min_val[hour] = _frac(200)
                 max_val[hour] = _frac(400)
@@ -132,7 +135,8 @@ def compute_profile(
             continue
 
         # --- Priority 5: Middle prices → moderate, time-of-day based ---
-        is_night = 0 <= hour < 7 or 22 <= hour < 24
+        # Night: 23:00–07:59 (no solar; preserve battery for daytime)
+        is_night = 0 <= hour < 8 or 22 <= hour < 24
         is_evening = 18 <= hour < 22
 
         if is_night:
