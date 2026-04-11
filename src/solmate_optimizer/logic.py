@@ -120,13 +120,13 @@ def compute_profile(
         # --- Priority 4: Price above P75 → inject hard if battery OK + sun expected ---
         if price is not None and p75 is not None and price >= p75 and battery_ok:
             if sun_coming:
-                min_val[hour] = _frac(100)
-                max_val[hour] = _frac(200)
+                min_val[hour] = _frac(200)
+                max_val[hour] = _frac(400)
                 reasons[hour] = f"Price high ({price:.1f} ct >= P75={p75:.1f} ct), battery OK, sun expected"
             else:
                 # Price is high but no sun coming → inject moderately, don't drain battery
-                min_val[hour] = _frac(30)
-                max_val[hour] = _frac(100)
+                min_val[hour] = _frac(100)
+                max_val[hour] = _frac(200)
                 reasons[hour] = f"Price high ({price:.1f} ct >= P75={p75:.1f} ct), no sun expected"
             continue
 

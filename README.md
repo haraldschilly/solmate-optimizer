@@ -46,8 +46,8 @@ The optimizer is **price-driven** — electricity prices already encode weather,
 | 1 | Price < 0 (negative) | 0W | Grid pays consumers to take power — never inject |
 | 2 | Price below P25 of 24h | 0W | Electricity is cheap, save battery for when it matters |
 | 3 | Battery < 25% | 0–50W | Protect battery regardless of price |
-| 4 | Price above P75 + battery OK + sun expected | 100–200W | Inject hard when it pays off and battery can recharge |
-| 4 | Price above P75 but no sun coming | 30–100W | Price is high but can't recharge — be cautious |
+| 4 | Price above P75 + battery OK + sun expected | 200–400W | Inject hard when it pays off and battery can recharge |
+| 4 | Price above P75 but no sun coming | 100–200W | Price is high but can't recharge — be cautious |
 | 5 | Middle prices, night (0–7, 22–24) | 20–50W | Baseload (fridge, standby) |
 | 5 | Middle prices, daytime (7–18) | 0–50W | Let PV charge the battery |
 | 5 | Middle prices, evening (18–22) | 50–120W | Cover active household consumption |

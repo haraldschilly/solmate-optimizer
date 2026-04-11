@@ -46,7 +46,7 @@ Profile API pattern:
 
 1. **Battery < 25%** — protect battery: 0/50W regardless
 2. **Price < P25** of 24h prices — electricity cheap, don't inject (0/0)
-3. **Price > P75 + battery OK + sun expected** — inject hard (100/200W); if no sun coming: cautious (30/100W)
+3. **Price > P75 + battery OK + sun expected** — inject hard (200/400W); if no sun coming: cautious (100/200W)
 4. **Middle prices** — time-of-day fallback: night 20/50W, daytime 0/50W, evening 50/120W
 
 Profile values are fractions 0.0–1.0 of max capacity (e.g., 0.125 = 100W at 800W max).
