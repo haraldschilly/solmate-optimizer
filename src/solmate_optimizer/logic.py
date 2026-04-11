@@ -8,9 +8,12 @@ Decision priority:
   1. Price < 0 (negative) → never inject, grid is paying consumers to take power (0/0)
   2. Price < P25 of 24h prices → don't inject, electricity is cheap (0/0)
   3. Battery critically low → protect battery (0/50W)
-  4. Price > P75 AND battery OK AND sun expected → inject hard (200/400W)
-  4. Price > P75 AND battery OK but no sun coming → inject moderately (100/200W)
-  5. Middle prices → moderate injection based on time of day
+  4. Price > P75 AND battery OK AND sun expected AND daytime (08:00–22:59) → inject hard (200/400W)
+  4. Price > P75 AND battery OK but no sun coming AND daytime (08:00–22:59) → inject moderately (100/200W)
+     (nighttime hours 23:00–07:59 skip priority 4 entirely — no solar production, battery must be preserved)
+  5. Middle prices, night (22:00–07:59) → baseload (20/50W)
+  5. Middle prices, daytime (08:00–17:59) → let PV charge (0/50W)
+  5. Middle prices, evening (18:00–21:59) → cover household consumption (50/120W)
 
 Price-based rules (1 and 2) always win over battery protection: even a low battery
 should not inject when prices are negative or very cheap.
