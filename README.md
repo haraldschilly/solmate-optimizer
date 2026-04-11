@@ -65,11 +65,11 @@ Requires Python 3.13+.
 With [uv](https://docs.astral.sh/uv/) installed, run the latest version directly — no clone, no virtualenv:
 
 ```bash
-uvx solmate-optimizer@latest                     # run optimizer
+uvx --from solmate-optimizer@latest solmate      # run optimizer
 uvx --from solmate-optimizer@latest status       # read-only status view
 ```
 
-`uvx` fetches the package from PyPI into an ephemeral environment on first run and caches it for later invocations. Use `@latest` to always get the newest release, or pin to a specific version (e.g. `solmate-optimizer@0.2.0`).
+The `--from` flag is required because the package name (`solmate-optimizer`) differs from the executable names (`solmate`, `status`). `uvx` fetches the package from PyPI into an ephemeral environment on first run and caches it for later invocations. Pin to a specific version with e.g. `solmate-optimizer@0.2.0`.
 
 ### Option B — install via pip
 
@@ -121,7 +121,7 @@ status                          # read-only status view
 status --graph                  # status with plotext profile graphs
 ```
 
-When using `uvx`, prefix with `uvx solmate-optimizer@latest` (and `uvx --from solmate-optimizer@latest status` for the status command). When working from a checkout, prefix with `uv run`.
+When using `uvx`, prefix every command with `uvx --from solmate-optimizer@latest` (e.g. `uvx --from solmate-optimizer@latest solmate optimize --dry-run`). When working from a checkout, prefix with `uv run`.
 
 ### Commands
 
