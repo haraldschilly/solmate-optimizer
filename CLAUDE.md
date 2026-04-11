@@ -63,6 +63,7 @@ Required:
 
 Optional:
 - `LOCATION_LATLON` — `lat:lon` format, e.g. `48.2:16.37` for Vienna (default)
+- `TIMEZONE` — IANA timezone name for price/weather hour matching (default: `Europe/Vienna`); critical when running on UTC servers
 - `SOLMATE_PROFILE_NAME` — injection profile name to create/update (default: `dynamic`)
 - `BATTERY_LOW_THRESHOLD` — battery fraction below which injection is throttled (default: `0.25`)
 - `CLOUD_SUN_THRESHOLD` — forecast cloud % below which "sun expected" (default: `60`)
