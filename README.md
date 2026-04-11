@@ -109,45 +109,53 @@ uv run status --graph                # status with ASCII profile graphs
 ### Example output
 
 ```
-aWATTar: 13 hourly prices loaded
-OpenWeatherMap: clouds 75%, 8h forecast
-SolMate: PV=23W, inject=13W, battery=28%
-  Current 'dynamic':
-  max  ▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒        ▒▒▒▒▓▓▓▓▓▓▓▓▒▒▒▒
-  min  ░░░░░░░░░░░░░░                      ░░░░░░░░░░░░
-                              *
-        0     3     6     9     12    15    18    21
-
 ======================================================================
-SolMate Optimizer — 2026-04-10 11:51
+SolMate Optimizer — 2026-04-11 18:27 CEST
 ======================================================================
-Price now: 11.0 ct/kWh (P25=10.1, P75=15.0, range: 8.6 – 22.6 ct/kWh)
-Battery: 28%
-Clouds now: 75%
+aWATTar: 24 hourly prices loaded
+OpenWeatherMap: clouds 0%, 8h forecast
+SolMate: PV=17W, inject=83W, battery=97%
+Price now: 8.4 ct/kWh (P25=3.6, P75=10.4, range: -0.0 – 11.2 ct/kWh)
+Battery: 97%
+Clouds now: 0%
 
 Hourly profile 'dynamic':
   Hour  ct/kWh  Cloud   MinW   MaxW  Reason
   ----  ------  -----  -----  -----  ----------------------------------------
-     0       -    75%     20     50  Night/baseload
-     1       -    75%     20     50  Night/baseload
-     2       -    84%     20     50  Night/baseload
-     ...
-*   11    11.0    29%      0     50  Daytime, let PV charge
-    12     9.2    75%      0      0  Price low (9.2 ct <= P25=10.1 ct)
-    ...
-    18    15.0    75%     30    100  Price high (15.0 ct >= P75=15.0 ct), no sun expected
-    19    20.5    75%     30    100  Price high (20.5 ct >= P75=15.0 ct), no sun expected
-    20    22.6   100%     30    100  Price high (22.6 ct >= P75=15.0 ct), no sun expected
-    21    16.6    75%     30    100  Price high (16.6 ct >= P75=15.0 ct), no sun expected
-    22    14.4    75%     20     50  Night/baseload
-    23    13.5    85%     20     50  Night/baseload
+     0    10.2     0%     20     50  Night/baseload
+     1     9.5     0%     20     50  Night/baseload
+     2    10.2    24%     20     50  Night/baseload
+     3     9.9     0%     20     50  Night/baseload
+     4    10.7     0%     20     50  Night/baseload
+     5    11.1    40%     20     50  Night/baseload
+     6    10.9     0%     20     50  Night/baseload
+     7    10.3     0%     20     50  Night/baseload
+     8     6.4    53%      0     50  Daytime, let PV charge
+     9     4.1     0%      0     50  Daytime, let PV charge
+    10     2.1     0%      0      0  Price low (2.1 ct <= P25=3.6 ct)
+    11     1.4    36%      0      0  Price low (1.4 ct <= P25=3.6 ct)
+    12     0.1     0%      0      0  Price low (0.1 ct <= P25=3.6 ct)
+    13    -0.0     0%      0      0  Negative price (-0.0 ct) — never inject
+    14     0.0    51%      0      0  Price low (0.0 ct <= P25=3.6 ct)
+    15     1.6     0%      0      0  Price low (1.6 ct <= P25=3.6 ct)
+    16     5.8     0%      0     50  Daytime, let PV charge
+    17     9.7    81%      0     50  Daytime, let PV charge
+*   18     8.4     0%     50    120  Evening consumption
+    19    11.2     0%    200    400  Price high (11.2 ct >= P75=10.4 ct), battery OK, sun expected
+    20    11.0    14%    200    400  Price high (11.0 ct >= P75=10.4 ct), battery OK, sun expected
+    21     9.9     0%     50    120  Evening consumption
+    22    10.7     0%    200    400  Price high (10.7 ct >= P75=10.4 ct), battery OK, sun expected
+    23    10.4    13%     20     50  Night/baseload
 
-  New 'dynamic':
-  max  ▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒        ▒▒▒▒▓▓▓▓▓▓▓▓▒▒▒▒
-  min  ░░░░░░░░░░░░░░                      ░░░░░░░░░░░░
-                              *
-        0     3     6     9     12    15    18    21
-No change — profile 'dynamic' is already up to date.
+                                 Profile 'dynamic'
+     ┌───────────────────────────────────────────────────────┬───────────────┐
+460.0┤                                                       │  ▄▄▄▄     ▗   │
+383.3┤                                                       │ ▞    ▚   ▗▀▖  │
+230.0┤                                                       │▞ ▄▄▄▄ ▚ ▗▘▗▝▖ │
+153.3┤                                                       ▞▄▀    ▀▄▚▗▞▘▚▖▖│
+  0.0┤▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▀        ▀▘   ▝▄│
+     └┬────────┬────────┬────────┬─────────┬────────┬────────┴────────┬──────┘
+      0        3        6        9        12       15       18       21
 ```
 
 ## How injection profiles work
