@@ -56,15 +56,4 @@ Profile values are fractions 0.0–1.0 of max capacity (e.g., 0.125 = 100W at 80
 
 ## Environment Variables
 
-Required:
-- `SOLMATE_SERIAL` — device serial number
-- `SOLMATE_PASSWORD` — device password
-- `OWM_API_KEY` — OpenWeatherMap API key
-
-Optional:
-- `LOCATION_LATLON` — `lat:lon` format, e.g. `48.2:16.37` for Vienna (default)
-- `TIMEZONE` — IANA timezone name for price/weather hour matching (default: `Europe/Vienna`); critical when running on UTC servers
-- `SOLMATE_PROFILE_NAME` — injection profile name to create/update (default: `dynamic`)
-- `BATTERY_LOW_THRESHOLD` — battery fraction below which injection is throttled (default: `0.25`)
-- `CLOUD_SUN_THRESHOLD` — forecast cloud % below which "sun expected" (default: `60`)
-- `MAX_WATTS` — SolMate max injection capacity in watts (default: `800`)
+See the [README](README.md#configuration) for the full list of required and optional env vars.
