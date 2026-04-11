@@ -5,10 +5,14 @@ So 0.0625 = 50W, 0.125 = 100W, 0.25 = 200W, etc.
 Battery state is also a fraction 0.0–1.0 (as returned by the SDK).
 
 Decision priority:
-  1. Battery critically low → protect battery (0/50W)
+  1. Price < 0 (negative) → never inject, grid is paying consumers to take power (0/0)
   2. Price < P25 of 24h prices → don't inject, electricity is cheap (0/0)
-  3. Price > P75 AND battery OK AND sun expected → inject hard (100/200W)
-  4. Middle prices → moderate injection based on time of day
+  3. Battery critically low → protect battery (0/50W)
+  4. Price > P75 AND battery OK AND sun expected → inject hard (100/200W)
+  5. Middle prices → moderate injection based on time of day
+
+Price-based rules (1 and 2) always win over battery protection: even a low battery
+should not inject when prices are negative or very cheap.
 """
 
 import os
@@ -92,21 +96,28 @@ def compute_profile(
         price = prices_by_hour.get(hour)
         clouds = clouds_by_hour.get(hour, clouds_now)
 
-        # --- Priority 1: Price below P25 → don't inject (always wins) ---
+        # --- Priority 1: Negative price → never inject (grid pays consumers to take power) ---
+        if price is not None and price < 0:
+            min_val[hour] = 0.0
+            max_val[hour] = 0.0
+            reasons[hour] = f"Negative price ({price:.1f} ct) — never inject"
+            continue
+
+        # --- Priority 2: Price below P25 → don't inject, electricity is cheap ---
         if price is not None and p25 is not None and price <= p25:
             min_val[hour] = 0.0
             max_val[hour] = 0.0
             reasons[hour] = f"Price low ({price:.1f} ct <= P25={p25:.1f} ct)"
             continue
 
-        # --- Priority 2: Battery critically low ---
+        # --- Priority 3: Battery critically low ---
         if battery_state is not None and battery_state < BATTERY_LOW_THRESHOLD:
             min_val[hour] = 0.0
             max_val[hour] = _frac(50)
             reasons[hour] = f"Battery low ({battery_state*100:.0f}%)"
             continue
 
-        # --- Priority 3: Price above P75 → inject hard if battery OK + sun expected ---
+        # --- Priority 4: Price above P75 → inject hard if battery OK + sun expected ---
         if price is not None and p75 is not None and price >= p75 and battery_ok:
             if sun_coming:
                 min_val[hour] = _frac(100)
@@ -119,7 +130,7 @@ def compute_profile(
                 reasons[hour] = f"Price high ({price:.1f} ct >= P75={p75:.1f} ct), no sun expected"
             continue
 
-        # --- Priority 4: Middle prices → moderate, time-of-day based ---
+        # --- Priority 5: Middle prices → moderate, time-of-day based ---
         is_night = 0 <= hour < 7 or 22 <= hour < 24
         is_evening = 18 <= hour < 22
 
