@@ -117,13 +117,9 @@ def parse_latlon(value: str) -> tuple[float, float]:
 
 
 def print_decision(profile: HourlyProfile, prices: dict[int, float], clouds_now: int, clouds_by_hour: dict[int, int], battery_state: float | None = None, profile_name: str = "dynamic") -> None:
-    """Print the decision summary for the current run."""
+    """Print price/battery/clouds info and the hourly decision table."""
     now = datetime.datetime.now()
     current_hour = now.hour
-
-    print(f"\n{'='*70}")
-    print(f"SolMate Optimizer — {now.strftime('%Y-%m-%d %H:%M')}")
-    print(f"{'='*70}")
 
     if prices:
         price_values = list(prices.values())
@@ -182,6 +178,12 @@ def optimize(dry_run: bool, no_activate: bool):
         print(f"Error: {e}", file=sys.stderr)
         sys.exit(1)
 
+    # --- Header ---
+    now = datetime.datetime.now()
+    print(f"\n{'='*70}")
+    print(f"SolMate Optimizer — {now.strftime('%Y-%m-%d %H:%M')}")
+    print(f"{'='*70}")
+
     # --- Fetch external data ---
     prices: dict[int, float] = {}
     clouds_now = 50
@@ -230,9 +232,6 @@ def optimize(dry_run: bool, no_activate: bool):
         sys.exit(1)
 
     current_hour = datetime.datetime.now().hour
-    if profile_name in existing_profiles:
-        cur = existing_profiles[profile_name]
-        plot_profile(f"Current '{profile_name}'", cur["min"], cur["max"], current_hour)
 
     # --- Compute profile ---
     profile = compute_profile(prices, clouds_now, clouds_by_hour, current_hour, battery_state)
@@ -244,17 +243,22 @@ def optimize(dry_run: bool, no_activate: bool):
         profile.max_val = [FALLBACK_MAX] * 24
         profile.reasons = ["Fallback: no data available"] * 24
 
+    # --- Check if profile actually changed ---
+    changed = True
+    old_profile = existing_profiles.get(profile_name)
+    if old_profile is not None:
+        if old_profile["min"] == profile.min_val and old_profile["max"] == profile.max_val:
+            changed = False
+
     # --- Print decision ---
     print_decision(profile, prices, clouds_now, clouds_by_hour, battery_state, profile_name)
 
-    plot_profile(f"New '{profile_name}'", profile.min_val, profile.max_val, current_hour)
-
-    # --- Check if profile actually changed ---
-    changed = True
-    if profile_name in existing_profiles:
-        cur = existing_profiles[profile_name]
-        if cur["min"] == profile.min_val and cur["max"] == profile.max_val:
-            changed = False
+    # --- Plots ---
+    if changed and old_profile is not None:
+        plot_profile(f"Before '{profile_name}'", old_profile["min"], old_profile["max"], current_hour)
+        plot_profile(f"After '{profile_name}'", profile.min_val, profile.max_val, current_hour)
+    else:
+        plot_profile(f"Profile '{profile_name}'", profile.min_val, profile.max_val, current_hour)
 
     if dry_run:
         if changed:
