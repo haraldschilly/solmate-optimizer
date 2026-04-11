@@ -3,6 +3,7 @@
 import datetime
 import os
 import sys
+import zoneinfo
 
 import click
 import httpx
@@ -36,7 +37,7 @@ def _next_occurrence(now: datetime.datetime) -> dict[int, datetime.datetime]:
     return result
 
 
-def fetch_prices() -> dict[int, float]:
+def fetch_prices(tz: datetime.tzinfo) -> dict[int, float]:
     """Fetch hourly electricity prices from aWATTar. Returns hour (0-23) → ct/kWh.
 
     For each hour, keeps the price closest to its next upcoming occurrence.
@@ -46,14 +47,14 @@ def fetch_prices() -> dict[int, float]:
     resp.raise_for_status()
     data = resp.json()
 
-    now = datetime.datetime.now()
+    now = datetime.datetime.now(tz=tz)
     targets = _next_occurrence(now)
 
     # Collect all prices keyed by (day, hour), then pick the best match per hour
     prices: dict[int, float] = {}
     best_dist: dict[int, float] = {}
     for entry in data["data"]:
-        ts = datetime.datetime.fromtimestamp(entry["start_timestamp"] / 1000)
+        ts = datetime.datetime.fromtimestamp(entry["start_timestamp"] / 1000, tz=tz)
         hour = ts.hour
         price = entry["marketprice"] / 10.0  # EUR/MWh → ct/kWh
         dist = abs((ts - targets[hour]).total_seconds())
@@ -63,7 +64,7 @@ def fetch_prices() -> dict[int, float]:
     return prices
 
 
-def fetch_weather(api_key: str, lat: float, lon: float) -> tuple[int, dict[int, int]]:
+def fetch_weather(api_key: str, lat: float, lon: float, tz: datetime.tzinfo) -> tuple[int, dict[int, int]]:
     """Fetch current clouds and hourly forecast from OpenWeatherMap.
 
     For each hour, keeps the forecast closest to its next upcoming occurrence.
@@ -82,13 +83,13 @@ def fetch_weather(api_key: str, lat: float, lon: float) -> tuple[int, dict[int, 
     resp.raise_for_status()
     forecast = resp.json()
 
-    now = datetime.datetime.now()
+    now = datetime.datetime.now(tz=tz)
     targets = _next_occurrence(now)
 
     clouds_by_hour: dict[int, int] = {}
     best_dist: dict[int, float] = {}
     for entry in forecast["list"]:
-        ts = datetime.datetime.fromtimestamp(entry["dt"])
+        ts = datetime.datetime.fromtimestamp(entry["dt"], tz=tz)
         hour = ts.hour
         clouds = entry["clouds"]["all"]
         dist = abs((ts - targets[hour]).total_seconds())
@@ -116,9 +117,8 @@ def parse_latlon(value: str) -> tuple[float, float]:
     return float(parts[0]), float(parts[1])
 
 
-def print_decision(profile: HourlyProfile, prices: dict[int, float], clouds_now: int, clouds_by_hour: dict[int, int], battery_state: float | None = None, profile_name: str = "dynamic") -> None:
+def print_decision(profile: HourlyProfile, prices: dict[int, float], clouds_now: int, clouds_by_hour: dict[int, int], now: datetime.datetime, battery_state: float | None = None, profile_name: str = "dynamic") -> None:
     """Print price/battery/clouds info and the hourly decision table."""
-    now = datetime.datetime.now()
     current_hour = now.hour
 
     if prices:
@@ -170,7 +170,7 @@ def optimize(dry_run: bool, no_activate: bool):
         print("Error: SOLMATE_SERIAL and SOLMATE_PASSWORD must be set", file=sys.stderr)
         sys.exit(1)
 
-    # Location for weather (default: Vienna)
+    # Location and timezone
     latlon_str = os.environ.get("LOCATION_LATLON", "48.2:16.37")
     try:
         lat, lon = parse_latlon(latlon_str)
@@ -178,10 +178,17 @@ def optimize(dry_run: bool, no_activate: bool):
         print(f"Error: {e}", file=sys.stderr)
         sys.exit(1)
 
+    tz_name = os.environ.get("TIMEZONE", "Europe/Vienna")
+    try:
+        tz = zoneinfo.ZoneInfo(tz_name)
+    except zoneinfo.ZoneInfoNotFoundError:
+        print(f"Error: unknown timezone '{tz_name}'", file=sys.stderr)
+        sys.exit(1)
+
     # --- Header ---
-    now = datetime.datetime.now()
+    now = datetime.datetime.now(tz=tz)
     print(f"\n{'='*70}")
-    print(f"SolMate Optimizer — {now.strftime('%Y-%m-%d %H:%M')}")
+    print(f"SolMate Optimizer — {now.strftime('%Y-%m-%d %H:%M %Z')}")
     print(f"{'='*70}")
 
     # --- Fetch external data ---
@@ -190,14 +197,14 @@ def optimize(dry_run: bool, no_activate: bool):
     clouds_by_hour: dict[int, int] = {}
 
     try:
-        prices = fetch_prices()
+        prices = fetch_prices(tz)
         print(f"aWATTar: {len(prices)} hourly prices loaded")
     except Exception as e:
         print(f"aWATTar error: {e} — using fallback profile", file=sys.stderr)
 
     if owm_key:
         try:
-            clouds_now, clouds_by_hour = fetch_weather(owm_key, lat, lon)
+            clouds_now, clouds_by_hour = fetch_weather(owm_key, lat, lon, tz)
             print(f"OpenWeatherMap: clouds {clouds_now}%, {len(clouds_by_hour)}h forecast")
         except Exception as e:
             print(f"OpenWeatherMap error: {e} — using fallback clouds", file=sys.stderr)
@@ -231,7 +238,7 @@ def optimize(dry_run: bool, no_activate: bool):
         print(f"Failed to read profiles: {e}", file=sys.stderr)
         sys.exit(1)
 
-    current_hour = datetime.datetime.now().hour
+    current_hour = now.hour
 
     # --- Compute profile ---
     profile = compute_profile(prices, clouds_now, clouds_by_hour, current_hour, battery_state)
@@ -251,7 +258,7 @@ def optimize(dry_run: bool, no_activate: bool):
             changed = False
 
     # --- Print decision ---
-    print_decision(profile, prices, clouds_now, clouds_by_hour, battery_state, profile_name)
+    print_decision(profile, prices, clouds_now, clouds_by_hour, now, battery_state, profile_name)
 
     # --- Plots ---
     if changed and old_profile is not None:
@@ -277,7 +284,7 @@ def optimize(dry_run: bool, no_activate: bool):
         "max": profile.max_val,
     }
 
-    timestamp = datetime.datetime.now().strftime(DATETIME_FORMAT_INJECTION_PROFILES)
+    timestamp = now.strftime(DATETIME_FORMAT_INJECTION_PROFILES)
     try:
         client.set_injection_profiles(existing_profiles, timestamp)
         print(f"UPDATED — profile '{profile_name}' written")
