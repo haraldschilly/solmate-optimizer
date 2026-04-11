@@ -76,17 +76,22 @@ Releases are triggered by pushing a `v*` tag. GitHub Actions builds and publishe
 
 ### Per-release steps
 ```bash
-# 1. Bump version in pyproject.toml (e.g. 0.1.0 → 0.2.0)
-# 2. Sync lockfile
+# 1. Update CHANGELOG.md — move items from [Unreleased] into a new [X.Y.Z]
+#    section with today's date, and add new compare links at the bottom.
+#    Follows Keep a Changelog conventions.
+# 2. Bump version in pyproject.toml (e.g. 0.1.0 → 0.2.0)
+# 3. Sync lockfile
 uv sync
 
-# 3. Commit
-git add pyproject.toml uv.lock   # uv.lock is gitignored here, skip if so
+# 4. Commit
+git add CHANGELOG.md pyproject.toml uv.lock   # uv.lock is gitignored here, skip if so
 git commit -m "Release v0.2.0"
 
-# 4. Tag and push — this triggers the GitHub Actions release workflow
+# 5. Tag and push — this triggers the GitHub Actions release workflow
 git tag v0.2.0
 git push origin main v0.2.0
 ```
+
+**CHANGELOG.md is required for every release** — no version bump without a corresponding entry. Group changes under `### Added`, `### Changed`, `### Fixed`, `### Removed` as appropriate.
 
 The workflow (`.github/workflows/release.yml`) runs on any `v*` tag, builds with `uv build`, and publishes to PyPI.
