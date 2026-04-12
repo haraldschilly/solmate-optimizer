@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-04-12
+
+### Added
+- `BATTERY_HIGH_THRESHOLD` config variable (default 0.75) for battery-aware evening injection.
+- Battery-aware peak limiting during evening hours (18:00–22:59): inject 100–200 W when battery is between 25–75 % instead of full power, preserving charge when no solar recharging is possible.
+
+### Fixed
+- Plot Y-axis now uses fixed 0 / 200 / 400 W ticks instead of dynamic fractional values; max line renders on top of min line.
+
+### Changed
+- README install instructions expanded with pip and uvx options.
+- Release process now requires CHANGELOG.md update for every version bump.
+
 ## [0.2.0] - 2026-04-11
 
 ### Added
@@ -31,6 +44,7 @@ Initial public release.
 - GitHub Actions release workflow using PyPI trusted publishing (OIDC).
 - GCP Cloud Run deployment instructions (`DEPLOYMENT.md`).
 
-[Unreleased]: https://github.com/haraldschilly/solmate-optimizer/compare/v0.2.0...HEAD
+[Unreleased]: https://github.com/haraldschilly/solmate-optimizer/compare/v0.3.0...HEAD
+[0.3.0]: https://github.com/haraldschilly/solmate-optimizer/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/haraldschilly/solmate-optimizer/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/haraldschilly/solmate-optimizer/releases/tag/v0.1.0

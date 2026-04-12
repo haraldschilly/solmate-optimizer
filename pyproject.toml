@@ -1,6 +1,6 @@
 [project]
 name = "solmate-optimizer"
-version = "0.2.0"
+version = "0.3.0"
 description = "Dynamically adjusts EET SolMate injection profile based on hourly electricity price and weather forecast"
 readme = "README.md"
 authors = [
