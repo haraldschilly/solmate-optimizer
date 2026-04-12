@@ -9,7 +9,9 @@ Decision priority:
   2. Price < P25 of 24h prices → don't inject, electricity is cheap (0/0)
   3. Battery critically low → protect battery (0/50W)
   4. Price > P75 AND battery OK AND sun expected AND not nighttime → inject hard (200/400W)
-  4. Price > P75 AND battery OK but no sun coming AND not nighttime → inject moderately (100/200W)
+  4. Price > P75 AND battery OK AND no sun AND not nighttime → inject moderately (100/200W)
+  4. Price > P75 AND battery OK AND evening AND battery < HIGH_THRESHOLD (75%) → 100/200W
+     (no solar recharging possible; spreading over time beats draining fast)
      (nighttime skips priority 4 entirely — no solar production, battery must be preserved)
   5. Middle prices, night (default 23:00–07:59, set via NIGHTTIME) → baseload (20/50W)
   5. Middle prices, daytime (default 08:00–17:59) → let PV charge (0/50W)
@@ -25,6 +27,7 @@ from dataclasses import dataclass
 # --- Configurable parameters (via env vars, with defaults) ---
 
 BATTERY_LOW_THRESHOLD = float(os.environ.get("BATTERY_LOW_THRESHOLD", "0.25"))
+BATTERY_HIGH_THRESHOLD = float(os.environ.get("BATTERY_HIGH_THRESHOLD", "0.75"))
 CLOUD_SUN_THRESHOLD = int(os.environ.get("CLOUD_SUN_THRESHOLD", "60"))
 MAX_WATTS = float(os.environ.get("MAX_WATTS", "800.0"))
 
@@ -110,10 +113,12 @@ def compute_profile(
 
     sun_coming = _sun_expected(clouds_by_hour)
     battery_ok = battery_state is not None and battery_state >= BATTERY_LOW_THRESHOLD
+    battery_high = battery_state is not None and battery_state >= BATTERY_HIGH_THRESHOLD
 
     for hour in range(24):
         price = prices_by_hour.get(hour)
         clouds = clouds_by_hour.get(hour, clouds_now)
+        is_evening = 18 <= hour < NIGHTTIME_START
 
         # --- Priority 1: Negative price → never inject (grid pays consumers to take power) ---
         if price is not None and price < 0:
@@ -136,11 +141,24 @@ def compute_profile(
             reasons[hour] = f"Battery low ({battery_state*100:.0f}%)"
             continue
 
-        # --- Priority 4: Price above P75 → inject hard if battery OK + sun expected ---
+        # --- Priority 4: Price above P75 → inject based on battery level and time ---
         # Never inject hard during nighttime: no solar production,
         # draining the battery overnight leaves nothing for daytime recharging.
+        # During evening (no more solar) three sub-cases apply:
+        #   battery >= HIGH_THRESHOLD (75%): inject hard (200/400 W)
+        #   battery >= LOW_THRESHOLD  (25%): inject moderately (100/200 W)
+        #   battery <  LOW_THRESHOLD  (25%): already caught by priority 3
         if price is not None and p75 is not None and price >= p75 and battery_ok and not _is_night_hour(hour):
-            if sun_coming:
+            if is_evening and not battery_high:
+                # Evening, high price, but battery only 25–75 %: moderate injection.
+                # No solar recharging possible; spreading over time beats draining fast.
+                min_val[hour] = _frac(100)
+                max_val[hour] = _frac(200)
+                reasons[hour] = (
+                    f"Price high ({price:.1f} ct >= P75={p75:.1f} ct), "
+                    f"evening, battery moderate ({battery_state*100:.0f}%)"
+                )
+            elif sun_coming:
                 min_val[hour] = _frac(200)
                 max_val[hour] = _frac(400)
                 reasons[hour] = f"Price high ({price:.1f} ct >= P75={p75:.1f} ct), battery OK, sun expected"
@@ -153,7 +171,6 @@ def compute_profile(
 
         # --- Priority 5: Middle prices → moderate, time-of-day based ---
         is_night = _is_night_hour(hour)
-        is_evening = 18 <= hour < NIGHTTIME_START
 
         if is_night:
             min_val[hour] = _frac(20)
