@@ -25,6 +25,7 @@ from dataclasses import dataclass
 # --- Configurable parameters (via env vars, with defaults) ---
 
 BATTERY_LOW_THRESHOLD = float(os.environ.get("BATTERY_LOW_THRESHOLD", "0.25"))
+BATTERY_HIGH_THRESHOLD = float(os.environ.get("BATTERY_HIGH_THRESHOLD", "0.75"))
 CLOUD_SUN_THRESHOLD = int(os.environ.get("CLOUD_SUN_THRESHOLD", "60"))
 MAX_WATTS = float(os.environ.get("MAX_WATTS", "800.0"))
 
