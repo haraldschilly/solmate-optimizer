@@ -9,7 +9,10 @@ Decision priority:
   2. Price < P25 of 24h prices → don't inject, electricity is cheap (0/0)
   3. Battery critically low → protect battery (0/50W)
   4. Price > P75 AND battery OK AND sun expected AND not nighttime → inject hard (200/400W)
+     During evening hours battery must also be >= BATTERY_HIGH_THRESHOLD (default 75%);
+     daytime only requires battery >= BATTERY_LOW_THRESHOLD (25%).
   4. Price > P75 AND battery OK but no sun coming AND not nighttime → inject moderately (100/200W)
+     Same evening battery restriction applies.
      (nighttime skips priority 4 entirely — no solar production, battery must be preserved)
   5. Middle prices, night (default 23:00–07:59, set via NIGHTTIME) → baseload (20/50W)
   5. Middle prices, daytime (default 08:00–17:59) → let PV charge (0/50W)
@@ -111,10 +114,12 @@ def compute_profile(
 
     sun_coming = _sun_expected(clouds_by_hour)
     battery_ok = battery_state is not None and battery_state >= BATTERY_LOW_THRESHOLD
+    battery_high = battery_state is not None and battery_state >= BATTERY_HIGH_THRESHOLD
 
     for hour in range(24):
         price = prices_by_hour.get(hour)
         clouds = clouds_by_hour.get(hour, clouds_now)
+        is_evening = 18 <= hour < NIGHTTIME_START
 
         # --- Priority 1: Negative price → never inject (grid pays consumers to take power) ---
         if price is not None and price < 0:
@@ -140,7 +145,10 @@ def compute_profile(
         # --- Priority 4: Price above P75 → inject hard if battery OK + sun expected ---
         # Never inject hard during nighttime: no solar production,
         # draining the battery overnight leaves nothing for daytime recharging.
-        if price is not None and p75 is not None and price >= p75 and battery_ok and not _is_night_hour(hour):
+        # During evening hours (no more solar), also require battery >= BATTERY_HIGH_THRESHOLD
+        # so a half-empty battery is not drained all at once — better spread over time.
+        battery_p4_ok = battery_ok and (not is_evening or battery_high)
+        if price is not None and p75 is not None and price >= p75 and battery_p4_ok and not _is_night_hour(hour):
             if sun_coming:
                 min_val[hour] = _frac(200)
                 max_val[hour] = _frac(400)
@@ -154,7 +162,6 @@ def compute_profile(
 
         # --- Priority 5: Middle prices → moderate, time-of-day based ---
         is_night = _is_night_hour(hour)
-        is_evening = 18 <= hour < NIGHTTIME_START
 
         if is_night:
             min_val[hour] = _frac(20)
