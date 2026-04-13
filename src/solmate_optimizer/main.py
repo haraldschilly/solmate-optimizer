@@ -10,16 +10,12 @@ import httpx
 from solmate_sdk import SolMateAPIClient
 from solmate_sdk.utils import DATETIME_FORMAT_INJECTION_PROFILES
 
-from solmate_optimizer.logic import MAX_WATTS, HourlyProfile, compute_profile, _quantile, _sun_expected
+from solmate_optimizer.logic import OptimizerConfig, HourlyProfile, compute_profile, parse_level
 from solmate_optimizer.plot import plot_profile
 
 AWATTAR_URL = "https://api.awattar.at/v1/marketdata"
 OWM_CURRENT_URL = "https://api.openweathermap.org/data/2.5/weather"
 OWM_FORECAST_URL = "https://api.openweathermap.org/data/2.5/forecast"
-
-# Fallback injection (fraction of 800W) if APIs fail → 30W / 80W
-FALLBACK_MIN = 30 / MAX_WATTS
-FALLBACK_MAX = 80 / MAX_WATTS
 
 
 def _next_occurrence(now: datetime.datetime) -> dict[int, datetime.datetime]:
@@ -107,8 +103,6 @@ def connect_solmate(serial: str, password: str) -> SolMateAPIClient:
     return client
 
 
-
-
 def parse_latlon(value: str) -> tuple[float, float]:
     """Parse 'lat:lon' string, e.g. '48.2:16.37'."""
     parts = value.split(":")
@@ -117,7 +111,7 @@ def parse_latlon(value: str) -> tuple[float, float]:
     return float(parts[0]), float(parts[1])
 
 
-def print_decision(profile: HourlyProfile, prices: dict[int, float], clouds_now: int, clouds_by_hour: dict[int, int], now: datetime.datetime, battery_state: float | None = None, profile_name: str = "dynamic") -> None:
+def print_decision(profile: HourlyProfile, prices: dict[int, float], clouds_now: int, clouds_by_hour: dict[int, int], now: datetime.datetime, battery_state: float | None = None, profile_name: str = "dynamic", max_watts: float = 800.0) -> None:
     """Print price/battery/clouds info and the hourly decision table."""
     current_hour = now.hour
 
@@ -125,11 +119,9 @@ def print_decision(profile: HourlyProfile, prices: dict[int, float], clouds_now:
         price_values = list(prices.values())
         current_price = prices.get(current_hour, None)
         price_str = f"{current_price:.1f}" if current_price is not None else "n/a"
-        if len(price_values) >= 4:
-            p25 = _quantile(price_values, 0.25)
-            p75 = _quantile(price_values, 0.75)
+        if profile.p25 is not None and profile.p75 is not None:
             print(f"Price now: {price_str} ct/kWh "
-                  f"(P25={p25:.1f}, P75={p75:.1f}, "
+                  f"(P25={profile.p25:.1f}, P75={profile.p75:.1f}, "
                   f"range: {min(price_values):.1f} – {max(price_values):.1f} ct/kWh)")
         else:
             print(f"Price now: {price_str} ct/kWh "
@@ -145,8 +137,8 @@ def print_decision(profile: HourlyProfile, prices: dict[int, float], clouds_now:
     print(f"  {'-'*4}  {'-'*6}  {'-'*5}  {'-'*5}  {'-'*5}  {'-'*40}")
     for h in range(24):
         marker = "*" if h == current_hour else " "
-        min_w = profile.min_val[h] * MAX_WATTS
-        max_w = profile.max_val[h] * MAX_WATTS
+        min_w = profile.min_val[h] * max_watts
+        max_w = profile.max_val[h] * max_watts
         price = prices.get(h)
         clouds = clouds_by_hour.get(h, clouds_now)
         price_str = f"{price:6.1f}" if price is not None else "     -"
@@ -157,8 +149,63 @@ def print_decision(profile: HourlyProfile, prices: dict[int, float], clouds_now:
 @click.command()
 @click.option("--dry-run", is_flag=True, help="Compute and display profile, but don't write or activate it")
 @click.option("--no-activate", is_flag=True, help="Write the profile to SolMate, but don't activate it")
-def optimize(dry_run: bool, no_activate: bool):
+@click.option("--battery-low", type=float, default=0.25, envvar="BATTERY_LOW_THRESHOLD",
+              help="Battery low threshold (fraction 0-1)")
+@click.option("--battery-high", type=float, default=0.75, envvar="BATTERY_HIGH_THRESHOLD",
+              help="Battery high threshold (fraction 0-1)")
+@click.option("--cloud-sun-threshold", type=int, default=60, envvar="CLOUD_SUN_THRESHOLD",
+              help="Cloud %% below which sun is expected")
+@click.option("--max-watts", type=float, default=800.0, envvar="MAX_WATTS",
+              help="SolMate max injection capacity in watts")
+@click.option("--nighttime", default="23,8", envvar="NIGHTTIME",
+              help="Nighttime window as 'start,end' (e.g. '23,8' → 23:00–07:59)")
+@click.option("--evening-start", type=int, default=18, envvar="EVENING_START",
+              help="First evening hour (inclusive, 0-23)")
+@click.option("--level-night", default="20,50", envvar="LEVEL_NIGHT",
+              help="Night/baseload injection level as 'min,max' watts")
+@click.option("--level-low", default="0,50", envvar="LEVEL_LOW",
+              help="Low injection level as 'min,max' watts (battery protection, daytime)")
+@click.option("--level-evening", default="50,120", envvar="LEVEL_EVENING",
+              help="Evening consumption injection level as 'min,max' watts")
+@click.option("--level-medium", default="100,200", envvar="LEVEL_MEDIUM",
+              help="Medium injection level as 'min,max' watts (high price, no sun)")
+@click.option("--level-high", default="200,400", envvar="LEVEL_HIGH",
+              help="High injection level as 'min,max' watts (high price, sun expected)")
+def optimize(dry_run: bool, no_activate: bool, battery_low: float, battery_high: float,
+             cloud_sun_threshold: int, max_watts: float, nighttime: str, evening_start: int,
+             level_night: str, level_low: str, level_evening: str,
+             level_medium: str, level_high: str):
     """Run the SolMate injection profile optimizer."""
+
+    try:
+        nt_start_str, nt_end_str = nighttime.split(",")
+        nt_start, nt_end = int(nt_start_str), int(nt_end_str)
+    except (ValueError, TypeError):
+        print(f"Error: NIGHTTIME must be 'start,end' (e.g. '23,8'), got '{nighttime}'", file=sys.stderr)
+        sys.exit(1)
+
+    try:
+        config = OptimizerConfig(
+            battery_low_threshold=battery_low,
+            battery_high_threshold=battery_high,
+            cloud_sun_threshold=cloud_sun_threshold,
+            max_watts=max_watts,
+            nighttime_start=nt_start,
+            nighttime_end=nt_end,
+            evening_start=evening_start,
+            level_night=parse_level(level_night),
+            level_low=parse_level(level_low),
+            level_evening=parse_level(level_evening),
+            level_medium=parse_level(level_medium),
+            level_high=parse_level(level_high),
+        )
+    except ValueError as e:
+        print(f"Error: {e}", file=sys.stderr)
+        sys.exit(1)
+
+    # Fallback injection (fraction of max_watts) if APIs fail → 30W / 80W
+    fallback_min = 30 / config.max_watts
+    fallback_max = 80 / config.max_watts
 
     # --- Load config from env ---
     serial = os.environ.get("SOLMATE_SERIAL")
@@ -241,13 +288,13 @@ def optimize(dry_run: bool, no_activate: bool):
     current_hour = now.hour
 
     # --- Compute profile ---
-    profile = compute_profile(prices, clouds_now, clouds_by_hour, current_hour, battery_state)
+    profile = compute_profile(prices, clouds_now, clouds_by_hour, current_hour, battery_state, config)
 
     # If both APIs failed, use safe fallback
     if not prices and not clouds_by_hour:
         print("Both APIs failed — using safe fallback profile")
-        profile.min_val = [FALLBACK_MIN] * 24
-        profile.max_val = [FALLBACK_MAX] * 24
+        profile.min_val = [fallback_min] * 24
+        profile.max_val = [fallback_max] * 24
         profile.reasons = ["Fallback: no data available"] * 24
 
     # --- Check if profile actually changed ---
@@ -258,14 +305,14 @@ def optimize(dry_run: bool, no_activate: bool):
             changed = False
 
     # --- Print decision ---
-    print_decision(profile, prices, clouds_now, clouds_by_hour, now, battery_state, profile_name)
+    print_decision(profile, prices, clouds_now, clouds_by_hour, now, battery_state, profile_name, config.max_watts)
 
     # --- Plots ---
     if changed and old_profile is not None:
-        plot_profile(f"Before '{profile_name}'", old_profile["min"], old_profile["max"], current_hour)
-        plot_profile(f"After '{profile_name}'", profile.min_val, profile.max_val, current_hour)
+        plot_profile(f"Before '{profile_name}'", old_profile["min"], old_profile["max"], current_hour, config.max_watts)
+        plot_profile(f"After '{profile_name}'", profile.min_val, profile.max_val, current_hour, config.max_watts)
     else:
-        plot_profile(f"Profile '{profile_name}'", profile.min_val, profile.max_val, current_hour)
+        plot_profile(f"Profile '{profile_name}'", profile.min_val, profile.max_val, current_hour, config.max_watts)
 
     if dry_run:
         if changed:
