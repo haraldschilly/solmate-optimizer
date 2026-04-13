@@ -3,7 +3,6 @@ __pycache__/
 *.egg-info/
 dist/
 .env
-uv.lock
 docs/superpowers/
 ops/
 .coverage
