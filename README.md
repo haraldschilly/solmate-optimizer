@@ -79,6 +79,8 @@ During **evening hours** priority 4 distinguishes two battery bands. If the batt
 
 Price-based rules (priorities 1 and 2) always win over battery protection: even a low battery should not inject when prices are negative or very cheap.
 
+For the reasoning behind these rules — why relative prices, why the sun-expected heuristic works the way it does, what the optimizer deliberately does *not* do — see [DESIGN.md](DESIGN.md).
+
 ## Install
 
 Requires Python 3.13+.
