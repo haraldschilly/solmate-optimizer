@@ -166,52 +166,53 @@ When using `uvx`, prefix every command with `uvx --from solmate-optimizer@latest
 
 ```
 ======================================================================
-SolMate Optimizer — 2026-04-11 18:27 CEST
+SolMate Optimizer — 2026-04-13 18:21 CEST
 ======================================================================
 aWATTar: 24 hourly prices loaded
 OpenWeatherMap: clouds 0%, 24h forecast
-SolMate: PV=17W, inject=83W, battery=97%
-Price now: 8.4 ct/kWh (P25=3.6, P75=10.4, range: -0.0 – 11.2 ct/kWh)
+SolMate: PV=16W, inject=95W, battery=97%
+Price now: 15.1 ct/kWh (P25=12.0, P75=14.7, range: 11.5 – 16.5 ct/kWh)
 Battery: 97%
 Clouds now: 0%
 
 Hourly profile 'dynamic':
   Hour  ct/kWh  Cloud   MinW   MaxW  Reason
   ----  ------  -----  -----  -----  ----------------------------------------
-     0    10.2     0%     20     50  Night/baseload
-     1     9.5     0%     20     50  Night/baseload
-     2    10.2    24%     20     50  Night/baseload
-     3     9.9     0%     20     50  Night/baseload
-     4    10.7     0%     20     50  Night/baseload
-     5    11.1    40%     20     50  Night/baseload
-     6    10.9     0%     20     50  Night/baseload
-     7    10.3     0%     20     50  Night/baseload
-     8     6.4    53%      0     50  Daytime, let PV charge
-     9     4.1     0%      0     50  Daytime, let PV charge
-    10     2.1     0%      0      0  Price low (2.1 ct <= P25=3.6 ct)
-    11     1.4    36%      0      0  Price low (1.4 ct <= P25=3.6 ct)
-    12     0.1     0%      0      0  Price low (0.1 ct <= P25=3.6 ct)
-    13    -0.0     0%      0      0  Negative price (-0.0 ct) — never inject
-    14     0.0    51%      0      0  Price low (0.0 ct <= P25=3.6 ct)
-    15     1.6     0%      0      0  Price low (1.6 ct <= P25=3.6 ct)
-    16     5.8     0%      0     50  Daytime, let PV charge
-    17     9.7    81%      0     50  Daytime, let PV charge
-*   18     8.4     0%     50    120  Evening consumption
-    19    11.2     0%    200    400  Price high (11.2 ct >= P75=10.4 ct), battery OK, sun expected
-    20    11.0    14%    200    400  Price high (11.0 ct >= P75=10.4 ct), battery OK, sun expected
-    21     9.9     0%     50    120  Evening consumption
-    22    10.7     0%    200    400  Price high (10.7 ct >= P75=10.4 ct), battery OK, sun expected
-    23    10.4    13%     20     50  Night/baseload
+     0    12.0    97%     20     50  Night/baseload
+     1    11.9    97%      0      0  Price low (11.9 ct <= P25=12.0 ct)
+     2    12.0    97%      0      0  Price low (12.0 ct <= P25=12.0 ct)
+     3    11.8    98%      0      0  Price low (11.8 ct <= P25=12.0 ct)
+     4    12.0    99%     20     50  Night/baseload
+     5    12.5   100%     20     50  Night/baseload
+     6    14.7   100%     20     50  Night/baseload
+     7    16.3   100%     20     50  Night/baseload
+     8    16.0   100%    100    200  Price high (16.0 ct >= P75=14.7 ct), no sun expected
+     9    14.5   100%      0     50  Daytime, let PV charge
+    10    12.6    99%      0     50  Daytime, let PV charge
+    11    12.9    99%      0     50  Daytime, let PV charge
+    12    11.9    98%      0      0  Price low (11.9 ct <= P25=12.0 ct)
+    13    11.5    96%      0      0  Price low (11.5 ct <= P25=12.0 ct)
+    14    11.9    95%      0      0  Price low (11.9 ct <= P25=12.0 ct)
+    15    12.6    97%      0     50  Daytime, let PV charge
+    16    13.5    98%      0     50  Daytime, let PV charge
+    17    14.8   100%    100    200  Price high (14.8 ct >= P75=14.7 ct), no sun expected
+*   18    15.1    78%    100    200  Price high (15.1 ct >= P75=14.7 ct), no sun expected
+    19    16.5    55%    100    200  Price high (16.5 ct >= P75=14.7 ct), no sun expected
+    20    15.8    33%    100    200  Price high (15.8 ct >= P75=14.7 ct), no sun expected
+    21    13.8    43%     50    120  Evening consumption
+    22    13.3    53%     50    120  Evening consumption
+    23    12.3    63%     20     50  Night/baseload
 
-                                 Profile 'dynamic'
-     ┌───────────────────────────────────────────────────────┬───────────────┐
-460.0┤                                                       │  ▄▄▄▄     ▗   │
-383.3┤                                                       │ ▞    ▚   ▗▀▖  │
-230.0┤                                                       │▞ ▄▄▄▄ ▚ ▗▘▗▝▖ │
-153.3┤                                                       ▞▄▀    ▀▄▚▗▞▘▚▖▖│
-  0.0┤▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▀        ▀▘   ▝▄│
-     └┬────────┬────────┬────────┬─────────┬────────┬────────┴────────┬──────┘
-      0        3        6        9        12       15       18       21
+                                Profile 'dynamic'                             
+   ┌────────────────────────────────────────────────────────┬────────────────┐
+400┤                                                        │                │
+   │                                                        │                │
+200┤                         ▖                           ▗▄▄▄▄▄▄▄▄▄▖         │
+   │                        ▞▝▖                         ▗▘  │      ▝▚▖       │
+   │                       ▞▄▚▝▚                       ▗▘▞▀▀▀▀▀▀▀▀▀▚▄▝▀▀▀▀▄▖ │
+  0┤▚▄▄▄▄▄▄▄▄▄▄▄▞▀▀▀▀▀▀▀▀▀▀▘  ▝▚▀▀▀▀▀▀▀▄▄▄▄▄▄▄▄▄▄▄▄▞▀▀▀▘▘   │        ▀▀▀▀▀▀▝▀│
+   └┬────────┬─────────┬────────┬─────────┬────────┬────────┴─────────┬──────┘
+    0        3         6        9        12       15       18        21       
 ```
 
 ## How injection profiles work
