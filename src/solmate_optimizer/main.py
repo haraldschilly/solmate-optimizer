@@ -60,6 +60,36 @@ def fetch_prices(tz: datetime.tzinfo) -> dict[int, float]:
     return prices
 
 
+def _interpolate_hourly(sparse: dict[int, int], fallback: int) -> dict[int, int]:
+    """Linearly interpolate sparse hourly data to fill all 24 hours.
+
+    Known data points are kept as-is. Gaps are filled by linear interpolation
+    between the nearest known neighbours. Hours before the first or after the
+    last data point are clamped to the nearest known value.
+    """
+    if not sparse:
+        return {h: fallback for h in range(24)}
+
+    known = sorted(sparse.keys())
+    result: dict[int, int] = {}
+    for h in range(24):
+        if h in sparse:
+            result[h] = sparse[h]
+            continue
+        # Find nearest known neighbours
+        below = [k for k in known if k < h]
+        above = [k for k in known if k > h]
+        if not below:
+            result[h] = sparse[known[0]]       # clamp to first
+        elif not above:
+            result[h] = sparse[known[-1]]       # clamp to last
+        else:
+            lo, hi = below[-1], above[0]
+            t = (h - lo) / (hi - lo)
+            result[h] = round(sparse[lo] * (1 - t) + sparse[hi] * t)
+    return result
+
+
 def fetch_weather(api_key: str, lat: float, lon: float, tz: datetime.tzinfo) -> tuple[int, dict[int, int]]:
     """Fetch current clouds and hourly forecast from OpenWeatherMap.
 
@@ -82,17 +112,18 @@ def fetch_weather(api_key: str, lat: float, lon: float, tz: datetime.tzinfo) -> 
     now = datetime.datetime.now(tz=tz)
     targets = _next_occurrence(now)
 
-    clouds_by_hour: dict[int, int] = {}
+    sparse: dict[int, int] = {}
     best_dist: dict[int, float] = {}
     for entry in forecast["list"]:
         ts = datetime.datetime.fromtimestamp(entry["dt"], tz=tz)
         hour = ts.hour
         clouds = entry["clouds"]["all"]
         dist = abs((ts - targets[hour]).total_seconds())
-        if hour not in clouds_by_hour or dist < best_dist[hour]:
-            clouds_by_hour[hour] = clouds
+        if hour not in sparse or dist < best_dist[hour]:
+            sparse[hour] = clouds
             best_dist[hour] = dist
 
+    clouds_by_hour = _interpolate_hourly(sparse, clouds_now)
     return clouds_now, clouds_by_hour
 
 
