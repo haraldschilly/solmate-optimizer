@@ -2,7 +2,7 @@
 
 [![PyPI version](https://img.shields.io/pypi/v/solmate-optimizer)](https://pypi.org/project/solmate-optimizer/)
 [![CI](https://github.com/haraldschilly/solmate-optimizer/actions/workflows/ci.yml/badge.svg)](https://github.com/haraldschilly/solmate-optimizer/actions/workflows/ci.yml)
-[![Python 3.13+](https://img.shields.io/pypi/pyversions/solmate-optimizer)](https://pypi.org/project/solmate-optimizer/)
+[![Python 3.13+](https://img.shields.io/python/required-version-toml?tomlFilePath=https://raw.githubusercontent.com/haraldschilly/solmate-optimizer/main/pyproject.toml)](https://pypi.org/project/solmate-optimizer/)
 [![License](https://img.shields.io/pypi/l/solmate-optimizer)](https://github.com/haraldschilly/solmate-optimizer/blob/main/LICENSE)
 
 Dynamically adjusts [EET SolMate](https://www.eet.energy/) solar battery injection profiles based on real-time electricity prices and weather data.
