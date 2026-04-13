@@ -39,23 +39,38 @@ Every run:
 
 ## Decision logic
 
-The optimizer is **price-driven** — electricity prices already encode weather, demand, and time-of-day patterns:
+The optimizer is **price-driven** — electricity prices already encode weather, demand, and time-of-day patterns.
 
-| Priority | Condition | Injection | Reasoning |
-|----------|-----------|-----------|-----------|
-| 1 | Price < 0 (negative) | 0 W | Grid pays consumers to take power — never inject |
-| 2 | Price below P25 of 24 h | 0 W | Electricity is cheap, save battery for when it matters |
-| 3 | Battery < 25 % | 0–50 W | Protect battery regardless of price |
-| 4 | Price above P75 + battery OK + sun expected + not nighttime | 200–400 W | Inject hard when it pays off and battery can recharge |
-| 4 | Price above P75 + battery OK + no sun + not nighttime | 100–200 W | Price is high but can't recharge — be cautious |
-| 4 | Price above P75 + battery 25–75 % + evening | 100–200 W | High price but below high threshold — moderate injection, spread over time |
-| 5 | Middle prices, night (default 23:00–07:59) | 20–50 W | Baseload (fridge, standby); no solar production |
-| 5 | Middle prices, daytime (default 08:00–17:59) | 0–50 W | Let PV charge the battery |
-| 5 | Middle prices, evening (default 18:00–22:59) | 50–120 W | Cover active household consumption |
+### Injection levels
 
-Priority 4 is intentionally skipped during nighttime: there is no solar production overnight, so injecting aggressively would drain the battery before the sun rises. The nighttime window defaults to 23:00–07:59 and is configurable via the `NIGHTTIME` environment variable.
+Named power levels (all configurable via env / CLI):
 
-During **evening hours** (18:00–22:59) priority 4 distinguishes two battery bands. If the battery is at or above `BATTERY_HIGH_THRESHOLD` (default 75 %), the full power level applies. If the battery is between `BATTERY_LOW_THRESHOLD` (25 %) and `BATTERY_HIGH_THRESHOLD` (75 %), a moderate 100–200 W is injected instead of the default 50–120 W evening rate — the high price still warrants more than pure baseload, but without solar recharging available it makes sense not to drain the battery too aggressively.
+| Level | Default | Used for |
+|-------|---------|----------|
+| **zero** | 0 / 0 W | No injection (negative or cheap prices) |
+| **night** | 20 / 50 W | Nighttime baseload |
+| **low** | 0 / 50 W | Battery protection, daytime PV charging |
+| **evening** | 50 / 120 W | Household evening consumption |
+| **medium** | 100 / 200 W | High price, no sun / evening moderate battery |
+| **high** | 200 / 400 W | High price, sun expected |
+
+### Priority table
+
+| Priority | Condition | Level | Reasoning |
+|----------|-----------|-------|-----------|
+| 1 | Price < 0 (negative) | zero | Grid pays consumers to take power — never inject |
+| 2 | Price below P25 of 24 h | zero | Electricity is cheap, save battery for when it matters |
+| 3 | Battery < 25 % | low | Protect battery regardless of price |
+| 4 | Price above P75 + battery OK + sun expected + not nighttime | high | Inject hard when it pays off and battery can recharge |
+| 4 | Price above P75 + battery OK + no sun + not nighttime | medium | Price is high but can't recharge — be cautious |
+| 4 | Price above P75 + battery 25–75 % + evening | medium | High price but below high threshold — moderate injection, spread over time |
+| 5 | Middle prices, night (default 23:00–07:59) | night | Baseload (fridge, standby); no solar production |
+| 5 | Middle prices, daytime (default 08:00–17:59) | low | Let PV charge the battery |
+| 5 | Middle prices, evening (default 18:00–22:59) | evening | Cover active household consumption |
+
+Priority 4 is intentionally skipped during nighttime: there is no solar production overnight, so injecting aggressively would drain the battery before the sun rises. The nighttime window defaults to 23:00–07:59 and is configurable via `--nighttime` / `NIGHTTIME`. The evening start defaults to 18:00 and is configurable via `--evening-start` / `EVENING_START`.
+
+During **evening hours** priority 4 distinguishes two battery bands. If the battery is at or above `BATTERY_HIGH_THRESHOLD` (default 75 %), the full power level applies. If the battery is between `BATTERY_LOW_THRESHOLD` (25 %) and `BATTERY_HIGH_THRESHOLD` (75 %), the **medium** level is used — the high price still warrants more than pure baseload, but without solar recharging available it makes sense not to drain the battery too aggressively.
 
 Price-based rules (priorities 1 and 2) always win over battery protection: even a low battery should not inject when prices are negative or very cheap.
 
@@ -93,21 +108,29 @@ uv run solmate
 
 ## Configuration
 
-All configuration is via environment variables:
+All configuration is via environment variables and/or CLI options. CLI options override environment variables.
 
-| Variable | Required | Default | Description |
-|----------|----------|---------|-------------|
-| `SOLMATE_SERIAL` | yes | — | Your SolMate's serial number |
-| `SOLMATE_PASSWORD` | yes | — | Your SolMate's user password |
-| `OWM_API_KEY` | yes | — | OpenWeatherMap API key ([free tier](https://openweathermap.org/api) works) |
-| `LOCATION_LATLON` | no | `48.2:16.37` | Latitude and longitude as `lat:lon` (default: Vienna) |
-| `TIMEZONE` | no | `Europe/Vienna` | Timezone for price/weather hour matching and display (use IANA names, e.g. `Europe/Berlin`) |
-| `SOLMATE_PROFILE_NAME` | no | `dynamic` | Name of the injection profile to create/update |
-| `BATTERY_LOW_THRESHOLD` | no | `0.25` | Battery fraction (0–1) below which injection is throttled |
-| `BATTERY_HIGH_THRESHOLD` | no | `0.75` | Battery fraction (0–1) required for high-price injection during evening hours (no solar recharging possible) |
-| `CLOUD_SUN_THRESHOLD` | no | `60` | Forecast cloud % below which "sun expected" for recharging |
-| `MAX_WATTS` | no | `800` | SolMate max injection capacity in watts |
-| `NIGHTTIME` | no | `23,8` | Nighttime window as `start,end`: start hour is inclusive, end hour is exclusive. The window wraps around midnight — `23,8` means 23:00–07:59. High injection (priority 4) is blocked and baseload values apply during this window. |
+| Env variable | CLI option | Default | Description |
+|-------------|-----------|---------|-------------|
+| `SOLMATE_SERIAL` | — | — | Your SolMate's serial number (required) |
+| `SOLMATE_PASSWORD` | — | — | Your SolMate's user password (required) |
+| `OWM_API_KEY` | — | — | OpenWeatherMap API key ([free tier](https://openweathermap.org/api) works) |
+| `LOCATION_LATLON` | — | `48.2:16.37` | Latitude and longitude as `lat:lon` (default: Vienna) |
+| `TIMEZONE` | — | `Europe/Vienna` | Timezone for price/weather hour matching and display (use IANA names, e.g. `Europe/Berlin`) |
+| `SOLMATE_PROFILE_NAME` | — | `dynamic` | Name of the injection profile to create/update |
+| `BATTERY_LOW_THRESHOLD` | `--battery-low` | `0.25` | Battery fraction (0–1) below which injection is throttled |
+| `BATTERY_HIGH_THRESHOLD` | `--battery-high` | `0.75` | Battery fraction (0–1) required for high-price injection during evening hours |
+| `CLOUD_SUN_THRESHOLD` | `--cloud-sun-threshold` | `60` | Forecast cloud % below which "sun expected" for recharging |
+| `MAX_WATTS` | `--max-watts` | `800` | SolMate max injection capacity in watts |
+| `NIGHTTIME` | `--nighttime` | `23,8` | Nighttime window as `start,end` (inclusive start, exclusive end, wraps midnight) |
+| `EVENING_START` | `--evening-start` | `18` | First evening hour (inclusive). Evening runs from here to nighttime start. |
+| `LEVEL_NIGHT` | `--level-night` | `20,50` | Night/baseload injection level as `min,max` watts |
+| `LEVEL_LOW` | `--level-low` | `0,50` | Low injection level as `min,max` watts (battery protection, daytime) |
+| `LEVEL_EVENING` | `--level-evening` | `50,120` | Evening consumption injection level as `min,max` watts |
+| `LEVEL_MEDIUM` | `--level-medium` | `100,200` | Medium injection level as `min,max` watts (high price, no sun) |
+| `LEVEL_HIGH` | `--level-high` | `200,400` | High injection level as `min,max` watts (high price, sun expected) |
+
+Level values are validated: min must be ≤ max, min ≥ 0, max ≤ `MAX_WATTS`, and `EVENING_START` ≤ nighttime start.
 
 ## Run
 
@@ -137,6 +160,7 @@ When using `uvx`, prefix every command with `uvx --from solmate-optimizer@latest
 | `solmate optimize --no-activate` | Write the profile to SolMate, but don't activate it |
 | `status` | Show live values and injection profiles (read-only, no OWM/aWATTar needed) |
 | `status --graph` | Same, with ASCII art visualization of each profile |
+| `status --max-watts 600` | Override max watts for display (also via `MAX_WATTS` env) |
 
 ### Example output
 
@@ -145,7 +169,7 @@ When using `uvx`, prefix every command with `uvx --from solmate-optimizer@latest
 SolMate Optimizer — 2026-04-11 18:27 CEST
 ======================================================================
 aWATTar: 24 hourly prices loaded
-OpenWeatherMap: clouds 0%, 8h forecast
+OpenWeatherMap: clouds 0%, 24h forecast
 SolMate: PV=17W, inject=83W, battery=97%
 Price now: 8.4 ct/kWh (P25=3.6, P75=10.4, range: -0.0 – 11.2 ct/kWh)
 Battery: 97%
