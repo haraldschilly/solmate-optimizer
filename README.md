@@ -120,7 +120,7 @@ All configuration is via environment variables and/or CLI options. CLI options o
 | `SOLMATE_SERIAL` | — | — | Your SolMate's serial number (required) |
 | `SOLMATE_PASSWORD` | — | — | Your SolMate's user password (required) |
 | `OWM_API_KEY` | — | — | OpenWeatherMap API key ([free tier](https://openweathermap.org/api) works) |
-| `LOCATION_LATLON` | — | `48.2:16.37` | Latitude and longitude as `lat:lon` (default: Vienna) |
+| `LOCATION_LATLON` | — | `48.2:16.32` | Latitude and longitude as `lat:lon` (default: Vienna) |
 | `TIMEZONE` | — | `Europe/Vienna` | Timezone for price/weather hour matching and display (use IANA names, e.g. `Europe/Berlin`) |
 | `SOLMATE_PROFILE_NAME` | — | `dynamic` | Name of the injection profile to create/update |
 | `BATTERY_LOW_THRESHOLD` | `--battery-low` | `0.25` | Battery fraction (0–1) below which injection is throttled |
