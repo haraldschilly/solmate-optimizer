@@ -29,7 +29,7 @@ The battery can be damaged by repeatedly running it to empty. Two thresholds gua
 - **Low threshold (default 25%)**: below this, only a trickle is allowed regardless of price.
 - **High threshold (default 75%)**: used during evening hours to decide between *medium* and *high* injection (see below).
 
-Price rules (negative, cheap) override battery protection entirely: even a depleted battery should not inject when electricity is practically free.
+The price rules (priorities 1 and 2) sit above battery protection in the priority order. When the battery is low, the optimizer normally allows a small trickle injection rather than cutting to zero — on the theory that covering some household load is better than nothing. But if prices are negative or below P25, that trickle is cut to zero as well. There is no point sending stored power to the grid when electricity is cheap or the grid is already oversupplied.
 
 ## Night: no solar, no aggressive injection
 
