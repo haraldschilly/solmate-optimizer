@@ -1,41 +1,75 @@
 """Pure decision engine: electricity prices + weather + time → 24h injection profile.
 
-Profile values are fractions 0.0–1.0 of the SolMate's max capacity (800W).
+Profile values are fractions 0.0–1.0 of the SolMate's max capacity (800W default).
 So 0.0625 = 50W, 0.125 = 100W, 0.25 = 200W, etc.
 Battery state is also a fraction 0.0–1.0 (as returned by the SDK).
 
-Decision priority:
-  1. Price < 0 (negative) → never inject, grid is paying consumers to take power (0/0)
-  2. Price < P25 of 24h prices → don't inject, electricity is cheap (0/0)
-  3. Battery critically low → protect battery (0/50W)
-  4. Price > P75 AND battery OK AND sun expected AND not nighttime → inject hard (200/400W)
-  4. Price > P75 AND battery OK AND no sun AND not nighttime → inject moderately (100/200W)
-  4. Price > P75 AND battery OK AND evening AND battery < HIGH_THRESHOLD (75%) → 100/200W
-     (no solar recharging possible; spreading over time beats draining fast)
+Injection levels (named, configurable):
+  zero    =   0,   0 W  — no injection at all
+  night   =  20,  50 W  — minimal baseload
+  low     =   0,  50 W  — trickle / protect battery
+  evening =  50, 120 W  — household consumption
+  medium  = 100, 200 W  — moderate injection
+  high    = 200, 400 W  — full injection
+
+Decision priority (level assignment):
+  1. Price < 0 (negative) → zero
+  2. Price < P25 of 24h prices → zero
+  3. Battery critically low → low
+  4. Price > P75 AND battery OK AND sun expected AND not nighttime → high
+  4. Price > P75 AND battery OK AND no sun AND not nighttime → medium
+  4. Price > P75 AND battery OK AND evening AND battery < HIGH_THRESHOLD → medium
      (nighttime skips priority 4 entirely — no solar production, battery must be preserved)
-  5. Middle prices, night (default 23:00–07:59, set via NIGHTTIME) → baseload (20/50W)
-  5. Middle prices, daytime (default 08:00–17:59) → let PV charge (0/50W)
-  5. Middle prices, evening (default 18:00–22:59) → cover household consumption (50/120W)
+  5. Middle prices, night → night
+  5. Middle prices, daytime (nighttime_end to evening_start, default 08:00–17:59) → low
+  5. Middle prices, evening (evening_start to nighttime_start, default 18:00–22:59) → evening
 
 Price-based rules (1 and 2) always win over battery protection: even a low battery
 should not inject when prices are negative or very cheap.
 """
 
-import os
 from dataclasses import dataclass
 
-# --- Configurable parameters (via env vars, with defaults) ---
 
-BATTERY_LOW_THRESHOLD = float(os.environ.get("BATTERY_LOW_THRESHOLD", "0.25"))
-BATTERY_HIGH_THRESHOLD = float(os.environ.get("BATTERY_HIGH_THRESHOLD", "0.75"))
-CLOUD_SUN_THRESHOLD = int(os.environ.get("CLOUD_SUN_THRESHOLD", "60"))
-MAX_WATTS = float(os.environ.get("MAX_WATTS", "800.0"))
+def parse_level(value: str) -> tuple[float, float]:
+    """Parse a 'min,max' watt string, e.g. '20,50' → (20.0, 50.0)."""
+    parts = value.split(",")
+    if len(parts) != 2:
+        raise ValueError(f"Level must be 'min,max', got '{value}'")
+    return float(parts[0]), float(parts[1])
 
-# NIGHTTIME="start,end": first nighttime hour (inclusive) and first morning hour (exclusive).
-# The window wraps around midnight, e.g. "23,8" → hours 23, 0, 1, 2, 3, 4, 5, 6, 7.
-_nt_start_str, _nt_end_str = os.environ.get("NIGHTTIME", "23,8").split(",")
-NIGHTTIME_START = int(_nt_start_str)  # inclusive
-NIGHTTIME_END = int(_nt_end_str)      # exclusive
+
+@dataclass(frozen=True)
+class OptimizerConfig:
+    """All tunable parameters for the decision engine."""
+    battery_low_threshold: float = 0.25
+    battery_high_threshold: float = 0.75
+    cloud_sun_threshold: int = 60
+    max_watts: float = 800.0
+    nighttime_start: int = 23  # inclusive
+    nighttime_end: int = 8     # exclusive
+    evening_start: int = 18    # inclusive (evening runs from here to nighttime_start)
+
+    # Named injection levels as (min_watts, max_watts) pairs
+    level_night: tuple[float, float] = (20.0, 50.0)
+    level_low: tuple[float, float] = (0.0, 50.0)
+    level_evening: tuple[float, float] = (50.0, 120.0)
+    level_medium: tuple[float, float] = (100.0, 200.0)
+    level_high: tuple[float, float] = (200.0, 400.0)
+
+    def __post_init__(self):
+        if self.evening_start > self.nighttime_start:
+            raise ValueError(
+                f"evening_start ({self.evening_start}) must be <= nighttime_start ({self.nighttime_start})"
+            )
+        for name in ("night", "low", "evening", "medium", "high"):
+            lo, hi = getattr(self, f"level_{name}")
+            if lo < 0:
+                raise ValueError(f"level_{name} min ({lo}) must be >= 0")
+            if hi > self.max_watts:
+                raise ValueError(f"level_{name} max ({hi}) must be <= max_watts ({self.max_watts})")
+            if lo > hi:
+                raise ValueError(f"level_{name} min ({lo}) must be <= max ({hi})")
 
 
 @dataclass
@@ -43,11 +77,8 @@ class HourlyProfile:
     min_val: list[float]  # 24 elements, index 0 = midnight, fraction 0-1
     max_val: list[float]  # 24 elements, index 0 = midnight, fraction 0-1
     reasons: list[str]  # 24 elements, human-readable
-
-
-def _frac(watts: float) -> float:
-    """Convert watts to fraction of max capacity."""
-    return watts / MAX_WATTS
+    p25: float | None = None  # 25th percentile of prices (ct/kWh), None if <4 prices
+    p75: float | None = None  # 75th percentile of prices (ct/kWh), None if <4 prices
 
 
 def _quantile(values: list[float], q: float) -> float:
@@ -60,22 +91,27 @@ def _quantile(values: list[float], q: float) -> float:
     return sorted_v[lo] * (1 - frac) + sorted_v[hi] * frac
 
 
-def _is_night_hour(hour: int) -> bool:
+def _is_night_hour(hour: int, config: OptimizerConfig) -> bool:
     """Return True if *hour* falls in the configured nighttime window.
 
-    The window wraps around midnight: NIGHTTIME_START is inclusive,
-    NIGHTTIME_END is exclusive. Default "23,8" → hours 23, 0–7.
+    The window wraps around midnight: nighttime_start is inclusive,
+    nighttime_end is exclusive. Default "23,8" → hours 23, 0–7.
     """
-    return hour >= NIGHTTIME_START or hour < NIGHTTIME_END
+    return hour >= config.nighttime_start or hour < config.nighttime_end
 
 
-def _sun_expected(clouds_by_hour: dict[int, int]) -> bool:
+def _sun_expected(clouds_by_hour: dict[int, int], config: OptimizerConfig) -> bool:
     """Check if sun is expected in the upcoming daytime hours (8-18)."""
     daytime = [clouds_by_hour[h] for h in range(8, 18) if h in clouds_by_hour]
     if not daytime:
         return False  # no forecast → be conservative
     avg = sum(daytime) / len(daytime)
-    return avg < CLOUD_SUN_THRESHOLD
+    return avg < config.cloud_sun_threshold
+
+
+def _level(level: tuple[float, float], config: OptimizerConfig) -> tuple[float, float]:
+    """Convert a (min_watts, max_watts) level to fractions of max capacity."""
+    return level[0] / config.max_watts, level[1] / config.max_watts
 
 
 def compute_profile(
@@ -84,6 +120,7 @@ def compute_profile(
     clouds_by_hour: dict[int, int],
     current_hour: int,
     battery_state: float | None = None,
+    config: OptimizerConfig = OptimizerConfig(),
 ) -> HourlyProfile:
     """Compute a 24-hour injection profile.
 
@@ -93,6 +130,7 @@ def compute_profile(
         clouds_by_hour: hour (0-23) → cloud %. May be partial.
         current_hour: current hour (0-23).
         battery_state: current battery level as fraction 0.0–1.0, or None if unknown.
+        config: tunable parameters (thresholds, max watts, nighttime window, levels).
 
     Returns:
         HourlyProfile with 24-element min/max arrays (fractions 0-1) and reasons.
@@ -107,82 +145,76 @@ def compute_profile(
         p25 = _quantile(price_values, 0.25)
         p75 = _quantile(price_values, 0.75)
     else:
-        # Not enough data for meaningful quantiles → disable price-based rules
         p25 = None
         p75 = None
 
-    sun_coming = _sun_expected(clouds_by_hour)
-    battery_ok = battery_state is not None and battery_state >= BATTERY_LOW_THRESHOLD
-    battery_high = battery_state is not None and battery_state >= BATTERY_HIGH_THRESHOLD
+    sun_coming = _sun_expected(clouds_by_hour, config)
+    battery_ok = battery_state is not None and battery_state >= config.battery_low_threshold
+    battery_high = battery_state is not None and battery_state >= config.battery_high_threshold
 
     for hour in range(24):
         price = prices_by_hour.get(hour)
-        clouds = clouds_by_hour.get(hour, clouds_now)
-        is_evening = 18 <= hour < NIGHTTIME_START
+        is_evening = config.evening_start <= hour < config.nighttime_start
 
-        # --- Priority 1: Negative price → never inject (grid pays consumers to take power) ---
+        # --- Priority 1: Negative price → zero ---
         if price is not None and price < 0:
             min_val[hour] = 0.0
             max_val[hour] = 0.0
             reasons[hour] = f"Negative price ({price:.1f} ct) — never inject"
             continue
 
-        # --- Priority 2: Price below P25 → don't inject, electricity is cheap ---
+        # --- Priority 2: Price below P25 → zero ---
         if price is not None and p25 is not None and price <= p25:
             min_val[hour] = 0.0
             max_val[hour] = 0.0
             reasons[hour] = f"Price low ({price:.1f} ct <= P25={p25:.1f} ct)"
             continue
 
-        # --- Priority 3: Battery critically low ---
-        if battery_state is not None and battery_state < BATTERY_LOW_THRESHOLD:
-            min_val[hour] = 0.0
-            max_val[hour] = _frac(50)
+        # --- Priority 3: Battery critically low → low ---
+        if battery_state is not None and battery_state < config.battery_low_threshold:
+            lo, hi = _level(config.level_low, config)
+            min_val[hour] = lo
+            max_val[hour] = hi
             reasons[hour] = f"Battery low ({battery_state*100:.0f}%)"
             continue
 
         # --- Priority 4: Price above P75 → inject based on battery level and time ---
-        # Never inject hard during nighttime: no solar production,
-        # draining the battery overnight leaves nothing for daytime recharging.
-        # During evening (no more solar) three sub-cases apply:
-        #   battery >= HIGH_THRESHOLD (75%): inject hard (200/400 W)
-        #   battery >= LOW_THRESHOLD  (25%): inject moderately (100/200 W)
-        #   battery <  LOW_THRESHOLD  (25%): already caught by priority 3
-        if price is not None and p75 is not None and price >= p75 and battery_ok and not _is_night_hour(hour):
+        if price is not None and p75 is not None and price >= p75 and battery_ok and not _is_night_hour(hour, config):
             if is_evening and not battery_high:
-                # Evening, high price, but battery only 25–75 %: moderate injection.
-                # No solar recharging possible; spreading over time beats draining fast.
-                min_val[hour] = _frac(100)
-                max_val[hour] = _frac(200)
+                lo, hi = _level(config.level_medium, config)
+                min_val[hour] = lo
+                max_val[hour] = hi
                 reasons[hour] = (
                     f"Price high ({price:.1f} ct >= P75={p75:.1f} ct), "
                     f"evening, battery moderate ({battery_state*100:.0f}%)"
                 )
             elif sun_coming:
-                min_val[hour] = _frac(200)
-                max_val[hour] = _frac(400)
+                lo, hi = _level(config.level_high, config)
+                min_val[hour] = lo
+                max_val[hour] = hi
                 reasons[hour] = f"Price high ({price:.1f} ct >= P75={p75:.1f} ct), battery OK, sun expected"
             else:
-                # Price is high but no sun coming → inject moderately, don't drain battery
-                min_val[hour] = _frac(100)
-                max_val[hour] = _frac(200)
+                lo, hi = _level(config.level_medium, config)
+                min_val[hour] = lo
+                max_val[hour] = hi
                 reasons[hour] = f"Price high ({price:.1f} ct >= P75={p75:.1f} ct), no sun expected"
             continue
 
-        # --- Priority 5: Middle prices → moderate, time-of-day based ---
-        is_night = _is_night_hour(hour)
-
-        if is_night:
-            min_val[hour] = _frac(20)
-            max_val[hour] = _frac(50)
+        # --- Priority 5: Middle prices → time-of-day based ---
+        if _is_night_hour(hour, config):
+            lo, hi = _level(config.level_night, config)
+            min_val[hour] = lo
+            max_val[hour] = hi
             reasons[hour] = "Night/baseload"
         elif is_evening:
-            min_val[hour] = _frac(50)
-            max_val[hour] = _frac(120)
+            lo, hi = _level(config.level_evening, config)
+            min_val[hour] = lo
+            max_val[hour] = hi
             reasons[hour] = "Evening consumption"
         else:
-            min_val[hour] = 0.0
-            max_val[hour] = _frac(50)
+            lo, hi = _level(config.level_low, config)
+            min_val[hour] = lo
+            max_val[hour] = hi
             reasons[hour] = "Daytime, let PV charge"
 
-    return HourlyProfile(min_val=min_val, max_val=max_val, reasons=reasons)
+    return HourlyProfile(min_val=min_val, max_val=max_val, reasons=reasons, p25=p25, p75=p75)

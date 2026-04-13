@@ -48,11 +48,13 @@ The decision engine is price-driven. For the full priority table and watt levels
 
 Profile values are fractions 0.0–1.0 of max capacity (e.g., 0.125 = 100W at 800W max).
 
-**Docs sync rule:** whenever `logic.py` changes (priorities, watt levels, hour boundaries, new conditions), you **must** update both:
-1. The module docstring at the top of `logic.py` — the "Decision priority" block.
-2. The "Decision logic" table in `README.md`.
+**Docs sync rule — MANDATORY, never skip:** whenever `logic.py` changes (priorities, watt levels, hour boundaries, new conditions, configurable parameters), you **must** update ALL of these before committing:
+1. The module docstring at the top of `logic.py` — the "Injection levels" and "Decision priority" blocks.
+2. The "Decision logic" section in `README.md` — both the "Injection levels" and "Priority table" sub-tables.
+3. The "Configuration" table in `README.md` — if any env var or CLI option was added/changed/removed.
+4. The "Testing" section in this file (`CLAUDE.md`) — if the test approach changed.
 
-These three sources (code, docstring, README) must always agree.
+These sources must always agree. Treat this as a blocking check before every commit that touches logic.py or main.py configuration.
 
 ## Testing
 
@@ -61,7 +63,7 @@ These three sources (code, docstring, README) must always agree.
 uv run pytest --cov=solmate_optimizer.logic --cov-report=term-missing
 ```
 
-Tests live in `tests/test_logic.py` and exercise every branch of `compute_profile()` plus all configurable parameters (`NIGHTTIME`, `BATTERY_LOW_THRESHOLD`, `BATTERY_HIGH_THRESHOLD`, `CLOUD_SUN_THRESHOLD`, `MAX_WATTS`). Config tests use `monkeypatch.setattr` on module globals since env vars are read at import time.
+Tests live in `tests/test_logic.py` and exercise every branch of `compute_profile()` plus all configurable parameters via `OptimizerConfig` (battery thresholds, cloud threshold, max watts, nighttime window, evening start, and all named injection levels). Config tests pass custom `OptimizerConfig` instances directly — no monkeypatching needed.
 
 **Coverage goal: 100% of `logic.py`.** CI enforces this on every push to `main` and on pull requests (`.github/workflows/ci.yml`).
 

@@ -7,13 +7,14 @@ import sys
 import click
 
 from solmate_optimizer.main import connect_solmate
-from solmate_optimizer.logic import MAX_WATTS
 from solmate_optimizer.plot import plot_profile
 
 
 @click.command()
 @click.option("--graph", is_flag=True, help="Show ASCII art graph for each profile")
-def status(graph: bool):
+@click.option("--max-watts", type=float, default=800.0, envvar="MAX_WATTS",
+              help="SolMate max injection capacity in watts")
+def status(graph: bool, max_watts: float):
     """Show current SolMate live values and injection profiles (read-only)."""
     serial = os.environ.get("SOLMATE_SERIAL")
     password = os.environ.get("SOLMATE_PASSWORD")
@@ -66,13 +67,13 @@ def status(graph: bool):
             for name in sorted(profiles.keys()):
                 marker = "*" if name == profile_name else " "
                 cur = profiles[name]
-                avg_min = sum(v * MAX_WATTS for v in cur["min"]) / 24
-                avg_max = sum(v * MAX_WATTS for v in cur["max"]) / 24
+                avg_min = sum(v * max_watts for v in cur["min"]) / 24
+                avg_max = sum(v * max_watts for v in cur["max"]) / 24
                 click.echo(f"  {marker} {name:<20}  avg {avg_min:.0f}–{avg_max:.0f} W")
 
             if graph and profile_name in profiles:
                 cur = profiles[profile_name]
-                plot_profile(profile_name, cur["min"], cur["max"], current_hour)
+                plot_profile(profile_name, cur["min"], cur["max"], current_hour, max_watts)
 
     except Exception as e:
         click.echo(f"Failed to read profiles: {e}", err=True)
