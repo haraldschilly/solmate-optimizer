@@ -52,7 +52,8 @@ Profile values are fractions 0.0–1.0 of max capacity (e.g., 0.125 = 100W at 80
 1. The module docstring at the top of `logic.py` — the "Injection levels" and "Decision priority" blocks.
 2. The "Decision logic" section in `README.md` — both the "Injection levels" and "Priority table" sub-tables.
 3. The "Configuration" table in `README.md` — if any env var or CLI option was added/changed/removed.
-4. The "Testing" section in this file (`CLAUDE.md`) — if the test approach changed.
+4. `DESIGN.md` — if the heuristic reasoning changes (thresholds, time windows, the sun-expected logic, battery bands, or the "what it does not do" list). This file is written for non-technical readers; keep it accurate and in plain English.
+5. The "Testing" section in this file (`CLAUDE.md`) — if the test approach changed.
 
 These sources must always agree. Treat this as a blocking check before every commit that touches logic.py or main.py configuration.
 
