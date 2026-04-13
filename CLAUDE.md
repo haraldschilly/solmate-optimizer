@@ -54,6 +54,17 @@ Profile values are fractions 0.0–1.0 of max capacity (e.g., 0.125 = 100W at 80
 
 These three sources (code, docstring, README) must always agree.
 
+## Testing
+
+```bash
+# Run tests with coverage report
+uv run pytest --cov=solmate_optimizer.logic --cov-report=term-missing
+```
+
+Tests live in `tests/test_logic.py` and exercise every branch of `compute_profile()` plus all configurable parameters (`NIGHTTIME`, `BATTERY_LOW_THRESHOLD`, `BATTERY_HIGH_THRESHOLD`, `CLOUD_SUN_THRESHOLD`, `MAX_WATTS`). Config tests use `monkeypatch.setattr` on module globals since env vars are read at import time.
+
+**Coverage goal: 100% of `logic.py`.** CI enforces this on every push to `main` and on pull requests (`.github/workflows/ci.yml`).
+
 ## External APIs
 
 - **aWATTar:** `GET https://api.awattar.at/v1/marketdata` — no auth, returns EUR/MWh (÷10 = ct/kWh)

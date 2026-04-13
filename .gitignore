@@ -6,3 +6,4 @@ dist/
 uv.lock
 docs/superpowers/
 ops/
+.coverage

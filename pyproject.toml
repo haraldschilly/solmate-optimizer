@@ -20,6 +20,9 @@ dependencies = [
 solmate = "solmate_optimizer.__main__:cli"
 status = "solmate_optimizer.status:status"
 
+[dependency-groups]
+dev = ["pytest", "pytest-cov"]
+
 [build-system]
 requires = ["uv_build>=0.10.10,<1"]
 build-backend = "uv_build"
