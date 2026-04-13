@@ -72,7 +72,7 @@ This avoids waking up to a flat battery on a cloudy day.
 
 ## The 24-hour profile as the unit of control
 
-The SolMate does not support real-time injection commands. Instead, it uses *named profiles* — each profile contains two 24-element arrays (minimum and maximum injection per hour). The optimizer computes a fresh profile every hour and writes it only if something changed. Your existing named profiles ("Sonnig", "Schlechtwetter", etc.) are never touched.
+The SolMate supports real-time injection commands, but the optimizer deliberately uses the 24-hour profile mechanism instead. The main reason is resilience: if the script fails to run for an hour or two — due to a network hiccup, a crashed scheduler, or a temporary API outage — the last written profile continues to govern injection autonomously on the device. A real-time command approach would leave the SolMate with no guidance during any gap. The profile is computed fresh every hour and written only if something changed.
 
 ## What the optimizer does not do
 
