@@ -249,7 +249,7 @@ def optimize(dry_run: bool, no_activate: bool, battery_low: float, battery_high:
         sys.exit(1)
 
     # Location and timezone
-    latlon_str = os.environ.get("LOCATION_LATLON", "48.2:16.37")
+    latlon_str = os.environ.get("LOCATION_LATLON", "48.2:16.32")
     try:
         lat, lon = parse_latlon(latlon_str)
     except ValueError as e:
