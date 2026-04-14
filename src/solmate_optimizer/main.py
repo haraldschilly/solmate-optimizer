@@ -1,7 +1,6 @@
 """Orchestrator: fetch electricity prices, weather, and SolMate state, then apply optimized profile."""
 
 import datetime
-import os
 import sys
 import zoneinfo
 
@@ -180,6 +179,18 @@ def print_decision(profile: HourlyProfile, prices: dict[int, float], clouds_now:
 @click.command()
 @click.option("--dry-run", is_flag=True, help="Compute and display profile, but don't write or activate it")
 @click.option("--no-activate", is_flag=True, help="Write the profile to SolMate, but don't activate it")
+@click.option("--serial", envvar="SOLMATE_SERIAL", required=True,
+              help="SolMate serial number")
+@click.option("--password", envvar="SOLMATE_PASSWORD", required=True,
+              help="SolMate user password")
+@click.option("--owm-api-key", envvar="OWM_API_KEY", default=None,
+              help="OpenWeatherMap API key")
+@click.option("--location", envvar="LOCATION_LATLON", default="48.2:16.32",
+              help="Latitude and longitude as 'lat:lon'")
+@click.option("--timezone", envvar="TIMEZONE", default="Europe/Vienna",
+              help="IANA timezone name (e.g. 'Europe/Berlin')")
+@click.option("--profile-name", envvar="SOLMATE_PROFILE_NAME", default="dynamic",
+              help="Name of the injection profile to create/update")
 @click.option("--battery-low", type=float, default=0.25, envvar="BATTERY_LOW_THRESHOLD",
               help="Battery low threshold (fraction 0-1)")
 @click.option("--battery-high", type=float, default=0.75, envvar="BATTERY_HIGH_THRESHOLD",
@@ -202,7 +213,9 @@ def print_decision(profile: HourlyProfile, prices: dict[int, float], clouds_now:
               help="Medium injection level as 'min,max' watts (high price, no sun)")
 @click.option("--level-high", default="200,400", envvar="LEVEL_HIGH",
               help="High injection level as 'min,max' watts (high price, sun expected)")
-def optimize(dry_run: bool, no_activate: bool, battery_low: float, battery_high: float,
+def optimize(dry_run: bool, no_activate: bool, serial: str, password: str,
+             owm_api_key: str | None, location: str, timezone: str, profile_name: str,
+             battery_low: float, battery_high: float,
              cloud_sun_threshold: int, max_watts: float, nighttime: str, evening_start: int,
              level_night: str, level_low: str, level_evening: str,
              level_medium: str, level_high: str):
@@ -238,29 +251,17 @@ def optimize(dry_run: bool, no_activate: bool, battery_low: float, battery_high:
     fallback_min = 30 / config.max_watts
     fallback_max = 80 / config.max_watts
 
-    # --- Load config from env ---
-    serial = os.environ.get("SOLMATE_SERIAL")
-    password = os.environ.get("SOLMATE_PASSWORD")
-    owm_key = os.environ.get("OWM_API_KEY")
-    profile_name = os.environ.get("SOLMATE_PROFILE_NAME", "dynamic")
-
-    if not serial or not password:
-        print("Error: SOLMATE_SERIAL and SOLMATE_PASSWORD must be set", file=sys.stderr)
-        sys.exit(1)
-
-    # Location and timezone
-    latlon_str = os.environ.get("LOCATION_LATLON", "48.2:16.32")
+    # --- Parse location and timezone ---
     try:
-        lat, lon = parse_latlon(latlon_str)
+        lat, lon = parse_latlon(location)
     except ValueError as e:
         print(f"Error: {e}", file=sys.stderr)
         sys.exit(1)
 
-    tz_name = os.environ.get("TIMEZONE", "Europe/Vienna")
     try:
-        tz = zoneinfo.ZoneInfo(tz_name)
+        tz = zoneinfo.ZoneInfo(timezone)
     except zoneinfo.ZoneInfoNotFoundError:
-        print(f"Error: unknown timezone '{tz_name}'", file=sys.stderr)
+        print(f"Error: unknown timezone '{timezone}'", file=sys.stderr)
         sys.exit(1)
 
     # --- Header ---
@@ -280,9 +281,9 @@ def optimize(dry_run: bool, no_activate: bool, battery_low: float, battery_high:
     except Exception as e:
         print(f"aWATTar error: {e} — using fallback profile", file=sys.stderr)
 
-    if owm_key:
+    if owm_api_key:
         try:
-            clouds_now, clouds_by_hour = fetch_weather(owm_key, lat, lon, tz)
+            clouds_now, clouds_by_hour = fetch_weather(owm_api_key, lat, lon, tz)
             print(f"OpenWeatherMap: clouds {clouds_now}%, {len(clouds_by_hour)}h forecast")
         except Exception as e:
             print(f"OpenWeatherMap error: {e} — using fallback clouds", file=sys.stderr)
