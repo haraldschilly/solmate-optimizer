@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- CLI options for all remaining env-only variables: `--serial`, `--password`, `--owm-api-key`, `--location`, `--timezone`, `--profile-name`.
+
 ## [0.4.0] - 2026-04-13
 
 ### Added

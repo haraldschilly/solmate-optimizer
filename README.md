@@ -119,12 +119,12 @@ All configuration is via environment variables and/or CLI options. CLI options o
 
 | Env variable | CLI option | Default | Description |
 |-------------|-----------|---------|-------------|
-| `SOLMATE_SERIAL` | — | — | Your SolMate's serial number (required) |
-| `SOLMATE_PASSWORD` | — | — | Your SolMate's user password (required) |
-| `OWM_API_KEY` | — | — | OpenWeatherMap API key ([free tier](https://openweathermap.org/api) works) |
-| `LOCATION_LATLON` | — | `48.2:16.32` | Latitude and longitude as `lat:lon` (default: Vienna) |
-| `TIMEZONE` | — | `Europe/Vienna` | Timezone for price/weather hour matching and display (use IANA names, e.g. `Europe/Berlin`) |
-| `SOLMATE_PROFILE_NAME` | — | `dynamic` | Name of the injection profile to create/update |
+| `SOLMATE_SERIAL` | `--serial` | — | Your SolMate's serial number (required) |
+| `SOLMATE_PASSWORD` | `--password` | — | Your SolMate's user password (required) |
+| `OWM_API_KEY` | `--owm-api-key` | — | OpenWeatherMap API key ([free tier](https://openweathermap.org/api) works) |
+| `LOCATION_LATLON` | `--location` | `48.2:16.32` | Latitude and longitude as `lat:lon` (default: Vienna) |
+| `TIMEZONE` | `--timezone` | `Europe/Vienna` | Timezone for price/weather hour matching and display (use IANA names, e.g. `Europe/Berlin`) |
+| `SOLMATE_PROFILE_NAME` | `--profile-name` | `dynamic` | Name of the injection profile to create/update |
 | `BATTERY_LOW_THRESHOLD` | `--battery-low` | `0.25` | Battery fraction (0–1) below which injection is throttled |
 | `BATTERY_HIGH_THRESHOLD` | `--battery-high` | `0.75` | Battery fraction (0–1) required for high-price injection during evening hours |
 | `CLOUD_SUN_THRESHOLD` | `--cloud-sun-threshold` | `60` | Forecast cloud % below which "sun expected" for recharging |
