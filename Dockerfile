@@ -8,4 +8,4 @@ COPY src/ src/
 
 RUN uv sync --no-dev
 
-CMD ["uv", "run", "solmate"]
+CMD ["uv", "run", "--no-sync", "solmate"]
