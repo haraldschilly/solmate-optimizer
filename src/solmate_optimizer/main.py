@@ -353,29 +353,29 @@ def optimize(dry_run: bool, no_activate: bool, serial: str, password: str,
             print("Dry run — no change needed.")
         return
 
-    if not changed:
+    if changed:
+        # --- Write updated profile ---
+        existing_profiles[profile_name] = {
+            "min": profile.min_val,
+            "max": profile.max_val,
+        }
+
+        timestamp = now.strftime(DATETIME_FORMAT_INJECTION_PROFILES)
+        try:
+            client.set_injection_profiles(existing_profiles, timestamp)
+            print(f"UPDATED — profile '{profile_name}' written")
+        except Exception as e:
+            print(f"Failed to write profile: {e}", file=sys.stderr)
+            sys.exit(1)
+    else:
         print(f"No change — profile '{profile_name}' is already up to date.")
-        return
-
-    # --- Write updated profile ---
-    existing_profiles[profile_name] = {
-        "min": profile.min_val,
-        "max": profile.max_val,
-    }
-
-    timestamp = now.strftime(DATETIME_FORMAT_INJECTION_PROFILES)
-    try:
-        client.set_injection_profiles(existing_profiles, timestamp)
-        print(f"UPDATED — profile '{profile_name}' written")
-    except Exception as e:
-        print(f"Failed to write profile: {e}", file=sys.stderr)
-        sys.exit(1)
 
     if no_activate:
-        print(f"Profile '{profile_name}' written but not activated (--no-activate).")
+        if changed:
+            print(f"Profile '{profile_name}' written but not activated (--no-activate).")
         return
 
-    # --- Activate profile ---
+    # --- Activate profile (always, to ensure mode is set to "profile") ---
     try:
         client.apply_injection_profile(profile_name)
         print(f"Profile '{profile_name}' activated")
