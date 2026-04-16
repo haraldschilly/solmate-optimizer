@@ -94,11 +94,13 @@ Releases are triggered by pushing a `v*` tag. GitHub Actions builds and publishe
 #    section with today's date, and add new compare links at the bottom.
 #    Follows Keep a Changelog conventions.
 # 2. Bump version in pyproject.toml (e.g. 0.1.0 → 0.2.0)
-# 3. Sync lockfile
+# 3. MANDATORY: sync lockfile — uv.lock must match pyproject.toml version.
+#    PyPI rejects re-uploads of deleted versions, so forgetting this
+#    forces a patch bump (e.g. v0.5.0 → v0.5.1).
 uv sync
 
-# 4. Commit
-git add CHANGELOG.md pyproject.toml uv.lock   # uv.lock is gitignored here, skip if so
+# 4. Commit — uv.lock MUST be included in the same commit as the version bump
+git add CHANGELOG.md pyproject.toml uv.lock
 git commit -m "Release v0.2.0"
 
 # 5. Tag and push — this triggers the GitHub Actions release workflow
