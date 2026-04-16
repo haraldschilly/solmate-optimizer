@@ -309,6 +309,14 @@ def optimize(dry_run: bool, no_activate: bool, serial: str, password: str,
     except Exception as e:
         print(f"Failed to read live values: {e}", file=sys.stderr)
 
+    # --- Read injection settings (mode: static vs profile) ---
+    try:
+        injection_settings = client.get_injection_settings()
+        print(f"Injection settings: {injection_settings}")
+    except Exception as e:
+        print(f"Failed to read injection settings: {e}", file=sys.stderr)
+        injection_settings = None
+
     # --- Read existing profiles ---
     try:
         settings = client.get_injection_profiles()
