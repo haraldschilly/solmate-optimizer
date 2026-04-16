@@ -7,8 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-04-16
+
 ### Added
 - CLI options for all remaining env-only variables: `--serial`, `--password`, `--owm-api-key`, `--location`, `--timezone`, `--profile-name`.
+
+### Fixed
+- Always activate the injection profile on every run, even when the profile values haven't changed. Previously, if the SolMate was manually switched to "static" mode, the optimizer would never switch back to "profile" mode until the next profile change.
 
 ## [0.4.0] - 2026-04-13
 
@@ -67,7 +72,8 @@ Initial public release.
 - GitHub Actions release workflow using PyPI trusted publishing (OIDC).
 - GCP Cloud Run deployment instructions (`DEPLOYMENT.md`).
 
-[Unreleased]: https://github.com/haraldschilly/solmate-optimizer/compare/v0.4.0...HEAD
+[Unreleased]: https://github.com/haraldschilly/solmate-optimizer/compare/v0.5.0...HEAD
+[0.5.0]: https://github.com/haraldschilly/solmate-optimizer/compare/v0.4.0...v0.5.0
 [0.4.0]: https://github.com/haraldschilly/solmate-optimizer/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/haraldschilly/solmate-optimizer/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/haraldschilly/solmate-optimizer/compare/v0.1.0...v0.2.0
