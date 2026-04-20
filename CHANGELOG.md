@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- New `history` subcommand (also standalone entry point) that fetches recent logs from the SolMate cloud via `get_recent_logs` and summarizes the response structure. Supports `--days N`, `--raw` (dump JSON to stdout), and `--dump FILE` (write JSON to disk). Intended as a first step toward daily averages and trend analysis over historical PV, injection, and battery data.
+
 ## [0.5.1] - 2026-04-16
 
 ### Added

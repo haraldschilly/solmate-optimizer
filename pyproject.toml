@@ -23,6 +23,7 @@ dependencies = [
 [project.scripts]
 solmate = "solmate_optimizer.__main__:cli"
 status = "solmate_optimizer.status:status"
+history = "solmate_optimizer.history:history"
 
 [dependency-groups]
 dev = ["pytest", "pytest-cov"]

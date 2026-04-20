@@ -153,6 +153,7 @@ solmate optimize --dry-run      # compute profile, don't write
 solmate optimize --no-activate  # write but don't activate
 status                          # read-only status view
 status --graph                  # status with plotext profile graphs
+history --days 7                # fetch recent PV/injection/battery logs
 ```
 
 When using `uvx`, prefix every command with `uvx --from solmate-optimizer@latest` (e.g. `uvx --from solmate-optimizer@latest solmate optimize --dry-run`). When working from a checkout, prefix with `uv run`.
@@ -168,6 +169,10 @@ When using `uvx`, prefix every command with `uvx --from solmate-optimizer@latest
 | `status` | Show live values and injection profiles (read-only, no OWM/aWATTar needed) |
 | `status --graph` | Same, with ASCII art visualization of each profile |
 | `status --max-watts 600` | Override max watts for display (also via `MAX_WATTS` env) |
+| `history` | Fetch recent logs (PV, injection, battery) from the cloud and summarize structure |
+| `history --days 7` | Fetch the last 7 days of logs |
+| `history --raw` | Dump the full JSON response to stdout |
+| `history --dump logs.json` | Write the full JSON response to a file for offline analysis |
 
 ### Example output
 
