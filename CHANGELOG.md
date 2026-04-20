@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 - New `history` subcommand (also standalone entry point) that fetches recent logs from the SolMate cloud via `get_recent_logs` and summarizes the response structure. Supports `--days N`, `--raw` (dump JSON to stdout), and `--dump FILE` (write JSON to disk). Intended as a first step toward daily averages and trend analysis over historical PV, injection, and battery data.
+- `history --plot` renders an ASCII chart via `plotext` with PV (orange), injection (blue) and battery state (green, scaled to %) overlaid on a shared time axis. A flexible extractor handles several likely response shapes; if it fails, it prints the mapped key names and suggests running `--raw` to inspect. `--from-file FILE` re-plots a previously dumped response offline.
 
 ## [0.5.1] - 2026-04-16
 

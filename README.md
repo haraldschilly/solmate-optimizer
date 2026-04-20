@@ -171,8 +171,10 @@ When using `uvx`, prefix every command with `uvx --from solmate-optimizer@latest
 | `status --max-watts 600` | Override max watts for display (also via `MAX_WATTS` env) |
 | `history` | Fetch recent logs (PV, injection, battery) from the cloud and summarize structure |
 | `history --days 7` | Fetch the last 7 days of logs |
+| `history --plot` | ASCII chart with PV / injection / battery overlaid on a shared time axis |
 | `history --raw` | Dump the full JSON response to stdout |
 | `history --dump logs.json` | Write the full JSON response to a file for offline analysis |
+| `history --from-file logs.json --plot` | Re-plot a previously dumped response without hitting the cloud |
 
 ### Example output
 
