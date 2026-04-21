@@ -153,7 +153,7 @@ solmate optimize --dry-run      # compute profile, don't write
 solmate optimize --no-activate  # write but don't activate
 status                          # read-only status view
 status --graph                  # status with plotext profile graphs
-history --days 7                # fetch recent PV/injection/battery logs
+history                         # plot last 7 days of PV/injection/battery
 ```
 
 When using `uvx`, prefix every command with `uvx --from solmate-optimizer@latest` (e.g. `uvx --from solmate-optimizer@latest solmate optimize --dry-run`). When working from a checkout, prefix with `uv run`.
@@ -169,12 +169,12 @@ When using `uvx`, prefix every command with `uvx --from solmate-optimizer@latest
 | `status` | Show live values and injection profiles (read-only, no OWM/aWATTar needed) |
 | `status --graph` | Same, with ASCII art visualization of each profile |
 | `status --max-watts 600` | Override max watts for display (also via `MAX_WATTS` env) |
-| `history` | Fetch recent logs (PV, injection, battery) from the cloud and summarize structure |
-| `history --days 7` | Fetch the last 7 days of logs |
-| `history --plot` | ASCII chart with PV / injection / battery overlaid on a shared time axis |
-| `history --raw` | Dump the full JSON response to stdout |
-| `history --dump logs.json` | Write the full JSON response to a file for offline analysis |
-| `history --from-file logs.json --plot` | Re-plot a previously dumped response without hitting the cloud |
+| `history` | Plot the last 7 days of PV, injection and battery with a dual y-axis (watts left, battery % right). Fills the terminal width and ~2/3 of its height (min 30 lines) |
+| `history --days 2` | Use a different time window |
+| `history --raw` | Dump the full JSON response (with all numeric arrays) to stdout instead of plotting |
+| `history --no-plot` | Print the response structure summary instead of plotting |
+| `history --dump logs.json` | Also write the full JSON response to a file (plot is still shown) |
+| `history --from-file logs.json` | Re-plot a previously dumped response without hitting the cloud |
 
 ### Example output
 
