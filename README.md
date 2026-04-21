@@ -176,6 +176,12 @@ When using `uvx`, prefix every command with `uvx --from solmate-optimizer@latest
 | `history --dump logs.json` | Also write the full JSON response to a file (plot is still shown) |
 | `history --from-file logs.json` | Re-plot a previously dumped response without hitting the cloud |
 
+### `history` screenshot
+
+`solmate history` renders the last 7 days of PV production, grid injection and battery state on a dual-axis ASCII chart that fills the terminal:
+
+![solmate history — 7 days of PV, injection, battery](docs/solmate-history.png)
+
 ### Example output
 
 ```
