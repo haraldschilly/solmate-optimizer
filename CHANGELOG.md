@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.6.0] - 2026-04-21
+
+### Added
+- New `history` subcommand (also standalone entry point): plots the last N days of PV, injection and battery from the SolMate cloud on a dual-axis ASCII chart (watts on the left axis, battery % on the right) via `plotext`. The plot fills the terminal width and ~2/3 of its height (min 30 lines). Default window is 7 days. Y-axis uses round ticks (0/200/400/600/800 W, 0/20/40/60/80/100 %). `--raw` dumps the full JSON response (with numeric arrays) to stdout, `--dump FILE` writes it to disk, `--no-plot` prints a structure summary instead of plotting, and `--from-file FILE` re-plots a previously dumped response offline.
+
 ## [0.5.1] - 2026-04-16
 
 ### Added
@@ -72,7 +77,8 @@ Initial public release.
 - GitHub Actions release workflow using PyPI trusted publishing (OIDC).
 - GCP Cloud Run deployment instructions (`DEPLOYMENT.md`).
 
-[Unreleased]: https://github.com/haraldschilly/solmate-optimizer/compare/v0.5.1...HEAD
+[Unreleased]: https://github.com/haraldschilly/solmate-optimizer/compare/v0.6.0...HEAD
+[0.6.0]: https://github.com/haraldschilly/solmate-optimizer/compare/v0.5.1...v0.6.0
 [0.5.1]: https://github.com/haraldschilly/solmate-optimizer/compare/v0.4.0...v0.5.1
 [0.4.0]: https://github.com/haraldschilly/solmate-optimizer/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/haraldschilly/solmate-optimizer/compare/v0.2.0...v0.3.0

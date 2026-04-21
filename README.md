@@ -153,6 +153,7 @@ solmate optimize --dry-run      # compute profile, don't write
 solmate optimize --no-activate  # write but don't activate
 status                          # read-only status view
 status --graph                  # status with plotext profile graphs
+history                         # plot last 7 days of PV/injection/battery
 ```
 
 When using `uvx`, prefix every command with `uvx --from solmate-optimizer@latest` (e.g. `uvx --from solmate-optimizer@latest solmate optimize --dry-run`). When working from a checkout, prefix with `uv run`.
@@ -168,6 +169,18 @@ When using `uvx`, prefix every command with `uvx --from solmate-optimizer@latest
 | `status` | Show live values and injection profiles (read-only, no OWM/aWATTar needed) |
 | `status --graph` | Same, with ASCII art visualization of each profile |
 | `status --max-watts 600` | Override max watts for display (also via `MAX_WATTS` env) |
+| `history` | Plot the last 7 days of PV, injection and battery with a dual y-axis (watts left, battery % right). Fills the terminal width and ~2/3 of its height (min 30 lines) |
+| `history --days 2` | Use a different time window |
+| `history --raw` | Dump the full JSON response (with all numeric arrays) to stdout instead of plotting |
+| `history --no-plot` | Print the response structure summary instead of plotting |
+| `history --dump logs.json` | Also write the full JSON response to a file (plot is still shown) |
+| `history --from-file logs.json` | Re-plot a previously dumped response without hitting the cloud |
+
+### `history` screenshot
+
+`solmate history` renders the last 7 days of PV production, grid injection and battery state on a dual-axis ASCII chart that fills the terminal:
+
+![solmate history — 7 days of PV, injection, battery](docs/solmate-history.png)
 
 ### Example output
 

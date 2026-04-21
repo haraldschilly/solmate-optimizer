@@ -1,6 +1,6 @@
 [project]
 name = "solmate-optimizer"
-version = "0.5.1"
+version = "0.6.0"
 description = "Dynamically adjusts EET SolMate injection profile based on hourly electricity price and weather forecast"
 readme = "README.md"
 authors = [
@@ -23,6 +23,7 @@ dependencies = [
 [project.scripts]
 solmate = "solmate_optimizer.__main__:cli"
 status = "solmate_optimizer.status:status"
+history = "solmate_optimizer.history:history"
 
 [dependency-groups]
 dev = ["pytest", "pytest-cov"]

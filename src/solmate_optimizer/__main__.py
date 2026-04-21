@@ -1,5 +1,6 @@
 import click
 
+from solmate_optimizer.history import history
 from solmate_optimizer.main import optimize
 from solmate_optimizer.status import status
 
@@ -13,5 +14,6 @@ def cli(ctx: click.Context):
 
 cli.add_command(optimize)
 cli.add_command(status)
+cli.add_command(history)
 
 cli()
