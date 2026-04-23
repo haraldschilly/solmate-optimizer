@@ -507,7 +507,7 @@ class TestConfigLevels:
     """Verify custom injection levels propagate to the profile."""
 
     def test_custom_night_level(self):
-        config = OptimizerConfig(level_night=(30.0, 80.0))
+        config = OptimizerConfig(level_night=(40.0, 100.0))
         result = compute_profile({}, 50, SUNNY_FORECAST, 12, battery_state=0.50, config=config)
         lo, hi = _level(config.level_night, config)
         # Hour 0 is nighttime

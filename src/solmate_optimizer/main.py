@@ -203,7 +203,7 @@ def print_decision(profile: HourlyProfile, prices: dict[int, float], clouds_now:
               help="Nighttime window as 'start,end' (e.g. '23,8' → 23:00–07:59)")
 @click.option("--evening-start", type=int, default=18, envvar="EVENING_START",
               help="First evening hour (inclusive, 0-23)")
-@click.option("--level-night", default="20,50", envvar="LEVEL_NIGHT",
+@click.option("--level-night", default="30,80", envvar="LEVEL_NIGHT",
               help="Night/baseload injection level as 'min,max' watts")
 @click.option("--level-low", default="0,50", envvar="LEVEL_LOW",
               help="Low injection level as 'min,max' watts (battery protection, daytime)")

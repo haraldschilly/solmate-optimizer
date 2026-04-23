@@ -53,7 +53,7 @@ Named power levels (all configurable via env / CLI):
 | Level | Default | Used for |
 |-------|---------|----------|
 | **zero** | 0 / 0 W | No injection (negative or cheap prices) |
-| **night** | 20 / 50 W | Nighttime baseload |
+| **night** | 30 / 80 W | Nighttime baseload |
 | **low** | 0 / 50 W | Battery protection, daytime PV charging |
 | **evening** | 50 / 120 W | Household evening consumption |
 | **medium** | 100 / 200 W | High price, no sun / evening moderate battery |
@@ -131,7 +131,7 @@ All configuration is via environment variables and/or CLI options. CLI options o
 | `MAX_WATTS` | `--max-watts` | `800` | SolMate max injection capacity in watts |
 | `NIGHTTIME` | `--nighttime` | `23,8` | Nighttime window as `start,end` (inclusive start, exclusive end, wraps midnight) |
 | `EVENING_START` | `--evening-start` | `18` | First evening hour (inclusive). Evening runs from here to nighttime start. |
-| `LEVEL_NIGHT` | `--level-night` | `20,50` | Night/baseload injection level as `min,max` watts |
+| `LEVEL_NIGHT` | `--level-night` | `30,80` | Night/baseload injection level as `min,max` watts |
 | `LEVEL_LOW` | `--level-low` | `0,50` | Low injection level as `min,max` watts (battery protection, daytime) |
 | `LEVEL_EVENING` | `--level-evening` | `50,120` | Evening consumption injection level as `min,max` watts |
 | `LEVEL_MEDIUM` | `--level-medium` | `100,200` | Medium injection level as `min,max` watts (high price, no sun) |
@@ -198,14 +198,14 @@ Clouds now: 0%
 Hourly profile 'dynamic':
   Hour  ct/kWh  Cloud   MinW   MaxW  Reason
   ----  ------  -----  -----  -----  ----------------------------------------
-     0    12.0    97%     20     50  Night/baseload
+     0    12.0    97%     30     80  Night/baseload
      1    11.9    97%      0      0  Price low (11.9 ct <= P25=12.0 ct)
      2    12.0    97%      0      0  Price low (12.0 ct <= P25=12.0 ct)
      3    11.8    98%      0      0  Price low (11.8 ct <= P25=12.0 ct)
-     4    12.0    99%     20     50  Night/baseload
-     5    12.5   100%     20     50  Night/baseload
-     6    14.7   100%     20     50  Night/baseload
-     7    16.3   100%     20     50  Night/baseload
+     4    12.0    99%     30     80  Night/baseload
+     5    12.5   100%     30     80  Night/baseload
+     6    14.7   100%     30     80  Night/baseload
+     7    16.3   100%     30     80  Night/baseload
      8    16.0   100%    100    200  Price high (16.0 ct >= P75=14.7 ct), no sun expected
      9    14.5   100%      0     50  Daytime, let PV charge
     10    12.6    99%      0     50  Daytime, let PV charge
@@ -221,7 +221,7 @@ Hourly profile 'dynamic':
     20    15.8    33%    100    200  Price high (15.8 ct >= P75=14.7 ct), no sun expected
     21    13.8    43%     50    120  Evening consumption
     22    13.3    53%     50    120  Evening consumption
-    23    12.3    63%     20     50  Night/baseload
+    23    12.3    63%     30     80  Night/baseload
 
                                 Profile 'dynamic'                             
    ┌────────────────────────────────────────────────────────┬────────────────┐

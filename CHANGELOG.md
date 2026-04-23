@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- Default night/baseload injection level raised from `20,50` W to `30,80` W to better cover typical overnight standby consumption. Override via `LEVEL_NIGHT` / `--level-night` to restore the previous value.
+
 ## [0.6.0] - 2026-04-21
 
 ### Added
