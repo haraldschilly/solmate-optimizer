@@ -6,7 +6,7 @@ Battery state is also a fraction 0.0–1.0 (as returned by the SDK).
 
 Injection levels (named, configurable):
   zero    =   0,   0 W  — no injection at all
-  night   =  20,  50 W  — minimal baseload
+  night   =  30,  80 W  — minimal baseload
   low     =   0,  50 W  — trickle / protect battery
   evening =  50, 120 W  — household consumption
   medium  = 100, 200 W  — moderate injection
@@ -51,7 +51,7 @@ class OptimizerConfig:
     evening_start: int = 18    # inclusive (evening runs from here to nighttime_start)
 
     # Named injection levels as (min_watts, max_watts) pairs
-    level_night: tuple[float, float] = (20.0, 50.0)
+    level_night: tuple[float, float] = (30.0, 80.0)
     level_low: tuple[float, float] = (0.0, 50.0)
     level_evening: tuple[float, float] = (50.0, 120.0)
     level_medium: tuple[float, float] = (100.0, 200.0)
