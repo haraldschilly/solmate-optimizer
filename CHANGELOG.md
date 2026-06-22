@@ -7,8 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **Morning export window** (priority 5): a short configurable window (default 08:00–09:59, `MORNING` / `--morning`) that, *only on days when sun is expected*, injects at the evening level to export morning PV at decent prices and keep battery headroom for the midday solar glut. On cloudy days the morning is treated as normal daytime so the battery is preserved for the evening. This works around the SolMate exporting surplus PV to the grid whenever the battery is full, which would otherwise dump the midday peak at the day's lowest (often negative) prices.
+
 ### Changed
 - Default night/baseload injection level raised from `20,50` W to `30,80` W to better cover typical overnight standby consumption. Override via `LEVEL_NIGHT` / `--level-night` to restore the previous value.
+- Default battery low threshold lowered from `0.25` (25 %) to `0.20` (20 %), so the optimizer uses more of the ~1 kWh battery while keeping a comfortable margin above the SolMate's 10 % hardware shutdown. Override via `BATTERY_LOW_THRESHOLD` / `--battery-low`.
+- Evening now runs through to midnight: the nighttime window default changed from `23,8` to `24,8` (night = 00:00–07:59), so hour 23 is treated as evening rather than night. Override via `NIGHTTIME` / `--nighttime`.
 
 ## [0.6.0] - 2026-04-21
 

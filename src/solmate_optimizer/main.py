@@ -191,7 +191,7 @@ def print_decision(profile: HourlyProfile, prices: dict[int, float], clouds_now:
               help="IANA timezone name (e.g. 'Europe/Berlin')")
 @click.option("--profile-name", envvar="SOLMATE_PROFILE_NAME", default="dynamic",
               help="Name of the injection profile to create/update")
-@click.option("--battery-low", type=float, default=0.25, envvar="BATTERY_LOW_THRESHOLD",
+@click.option("--battery-low", type=float, default=0.20, envvar="BATTERY_LOW_THRESHOLD",
               help="Battery low threshold (fraction 0-1)")
 @click.option("--battery-high", type=float, default=0.75, envvar="BATTERY_HIGH_THRESHOLD",
               help="Battery high threshold (fraction 0-1)")
@@ -199,8 +199,10 @@ def print_decision(profile: HourlyProfile, prices: dict[int, float], clouds_now:
               help="Cloud %% below which sun is expected")
 @click.option("--max-watts", type=float, default=800.0, envvar="MAX_WATTS",
               help="SolMate max injection capacity in watts")
-@click.option("--nighttime", default="23,8", envvar="NIGHTTIME",
-              help="Nighttime window as 'start,end' (e.g. '23,8' → 23:00–07:59)")
+@click.option("--nighttime", default="24,8", envvar="NIGHTTIME",
+              help="Nighttime window as 'start,end' (e.g. '24,8' → 00:00–07:59; 24 = night starts at midnight)")
+@click.option("--morning", default="8,10", envvar="MORNING",
+              help="Morning export window as 'start,end' (e.g. '8,10' → 08:00–09:59); uses the evening level on sunny days")
 @click.option("--evening-start", type=int, default=18, envvar="EVENING_START",
               help="First evening hour (inclusive, 0-23)")
 @click.option("--level-night", default="30,80", envvar="LEVEL_NIGHT",
@@ -216,7 +218,7 @@ def print_decision(profile: HourlyProfile, prices: dict[int, float], clouds_now:
 def optimize(dry_run: bool, no_activate: bool, serial: str, password: str,
              owm_api_key: str | None, location: str, timezone: str, profile_name: str,
              battery_low: float, battery_high: float,
-             cloud_sun_threshold: int, max_watts: float, nighttime: str, evening_start: int,
+             cloud_sun_threshold: int, max_watts: float, nighttime: str, morning: str, evening_start: int,
              level_night: str, level_low: str, level_evening: str,
              level_medium: str, level_high: str):
     """Run the SolMate injection profile optimizer."""
@@ -225,7 +227,14 @@ def optimize(dry_run: bool, no_activate: bool, serial: str, password: str,
         nt_start_str, nt_end_str = nighttime.split(",")
         nt_start, nt_end = int(nt_start_str), int(nt_end_str)
     except (ValueError, TypeError):
-        print(f"Error: NIGHTTIME must be 'start,end' (e.g. '23,8'), got '{nighttime}'", file=sys.stderr)
+        print(f"Error: NIGHTTIME must be 'start,end' (e.g. '24,8'), got '{nighttime}'", file=sys.stderr)
+        sys.exit(1)
+
+    try:
+        m_start_str, m_end_str = morning.split(",")
+        m_start, m_end = int(m_start_str), int(m_end_str)
+    except (ValueError, TypeError):
+        print(f"Error: MORNING must be 'start,end' (e.g. '8,10'), got '{morning}'", file=sys.stderr)
         sys.exit(1)
 
     try:
@@ -236,6 +245,8 @@ def optimize(dry_run: bool, no_activate: bool, serial: str, password: str,
             max_watts=max_watts,
             nighttime_start=nt_start,
             nighttime_end=nt_end,
+            morning_start=m_start,
+            morning_end=m_end,
             evening_start=evening_start,
             level_night=parse_level(level_night),
             level_low=parse_level(level_low),

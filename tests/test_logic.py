@@ -63,7 +63,7 @@ class TestQuantile:
 
 
 class TestIsNightHour:
-    """Default window: 23 inclusive to 8 exclusive → night = 23, 0–7."""
+    """Default window: 24 inclusive to 8 exclusive → night = 0–7 (evening runs to 23:59)."""
 
     def test_midnight_is_night(self):
         assert _is_night_hour(0, DEFAULT) is True
@@ -77,8 +77,8 @@ class TestIsNightHour:
     def test_22_is_not_night(self):
         assert _is_night_hour(22, DEFAULT) is False
 
-    def test_23_is_night(self):
-        assert _is_night_hour(23, DEFAULT) is True
+    def test_23_is_not_night(self):
+        assert _is_night_hour(23, DEFAULT) is False
 
     def test_12_is_not_night(self):
         assert _is_night_hour(12, DEFAULT) is False
@@ -132,6 +132,10 @@ class TestConfigValidation:
     def test_evening_start_after_nighttime_start_raises(self):
         with pytest.raises(ValueError, match="evening_start.*<=.*nighttime_start"):
             OptimizerConfig(evening_start=23, nighttime_start=22)
+
+    def test_morning_start_after_morning_end_raises(self):
+        with pytest.raises(ValueError, match="morning_start.*<=.*morning_end"):
+            OptimizerConfig(morning_start=12, morning_end=9)
 
     def test_valid_custom_levels(self):
         config = OptimizerConfig(level_night=(10.0, 30.0), level_high=(300.0, 600.0))
@@ -260,14 +264,18 @@ class TestPriority4HighPrice:
         assert result.max_val[20] == pytest.approx(hi)
 
     def test_high_price_nighttime_skips_p4(self):
-        """Nighttime + high price → P4 skipped, falls to P5 (level_night)."""
-        prices = {h: 1.0 for h in range(8)}
-        prices.update({h: 20.0 for h in range(8, 24)})
+        """Nighttime + high price → P4 skipped, falls to P5 (level_night).
+
+        Night hours (0–7) are priced high and daytime low, so P75 sits at the night
+        price: hour 3 would trigger P4 if it weren't a night hour.
+        """
+        prices = {h: 20.0 for h in range(8)}
+        prices.update({h: 10.0 for h in range(8, 24)})
         result = compute_profile(prices, 50, SUNNY_FORECAST, 12, battery_state=0.90)
         lo, hi = _level(DEFAULT.level_night, DEFAULT)
-        assert result.min_val[23] == pytest.approx(lo)
-        assert result.max_val[23] == pytest.approx(hi)
-        assert "Night" in result.reasons[23] or "baseload" in result.reasons[23]
+        assert result.min_val[3] == pytest.approx(lo)
+        assert result.max_val[3] == pytest.approx(hi)
+        assert "Night" in result.reasons[3] or "baseload" in result.reasons[3]
 
     def test_high_price_battery_not_ok(self):
         """High price but battery_state=None → battery_ok=False → P4 skipped."""
@@ -302,11 +310,11 @@ class TestPriority5MiddlePrices:
             assert "Night" in result.reasons[h] or "baseload" in result.reasons[h]
 
     def test_daytime_let_pv_charge(self):
-        """P5: daytime (8–17) → level_low."""
+        """P5: daytime (10–17, after the morning window) → level_low."""
         prices = self._mid_price_profile()
         result = compute_profile(prices, 50, SUNNY_FORECAST, 12, battery_state=0.50)
         lo, hi = _level(DEFAULT.level_low, DEFAULT)
-        for h in range(8, 18):
+        for h in range(10, 18):
             assert result.min_val[h] == lo
             assert result.max_val[h] == pytest.approx(hi)
             assert "Daytime" in result.reasons[h] or "PV" in result.reasons[h]
@@ -329,6 +337,32 @@ class TestPriority5MiddlePrices:
             assert result.max_val[h] == pytest.approx(hi), f"hour {h}: {result.reasons[h]}"
             assert "Evening" in result.reasons[h] or "consumption" in result.reasons[h].lower()
 
+    def test_morning_export_when_sun_expected(self):
+        """P5: morning (8–9) + sun expected → evening level (export to keep headroom)."""
+        result = compute_profile({}, 50, SUNNY_FORECAST, 12, battery_state=0.50)
+        elo, ehi = _level(DEFAULT.level_evening, DEFAULT)
+        for h in [8, 9]:
+            assert result.min_val[h] == pytest.approx(elo)
+            assert result.max_val[h] == pytest.approx(ehi)
+            assert "Morning" in result.reasons[h]
+
+    def test_morning_lets_pv_charge_when_cloudy(self):
+        """P5: morning (8–9) + no sun → low (preserve battery for evening)."""
+        result = compute_profile({}, 80, CLOUDY_FORECAST, 12, battery_state=0.50)
+        llo, lhi = _level(DEFAULT.level_low, DEFAULT)
+        for h in [8, 9]:
+            assert result.min_val[h] == pytest.approx(llo)
+            assert result.max_val[h] == pytest.approx(lhi)
+            assert "Daytime" in result.reasons[h]
+
+    def test_evening_extends_to_midnight(self):
+        """Evening now runs to 23:59 (night starts at midnight) → hour 23 is evening."""
+        result = compute_profile({}, 50, SUNNY_FORECAST, 12, battery_state=0.50)
+        elo, ehi = _level(DEFAULT.level_evening, DEFAULT)
+        assert result.min_val[23] == pytest.approx(elo)
+        assert result.max_val[23] == pytest.approx(ehi)
+        assert "Evening" in result.reasons[23]
+
 
 class TestEdgeCases:
     """Edge cases and boundary conditions."""
@@ -346,7 +380,7 @@ class TestEdgeCases:
         assert result.max_val[12] == pytest.approx(hi)
         assert result.reasons[12] == "Daytime, let PV charge"
         nlo, nhi = _level(DEFAULT.level_night, DEFAULT)
-        assert result.min_val[23] == pytest.approx(nlo)
+        assert result.min_val[2] == pytest.approx(nlo)
 
     def test_battery_none_skips_priority_3(self):
         prices = {h: 10.0 for h in range(24)}
@@ -440,6 +474,21 @@ class TestConfigEveningStart:
         assert "Daytime" in result.reasons[19]
         # Hour 20: evening
         assert "Evening" in result.reasons[20]
+
+
+class TestConfigMorning:
+    def test_custom_morning_window(self):
+        """Shift morning to 9–11 → those hours export on a sunny day, hour 8 reverts to daytime."""
+        config = OptimizerConfig(morning_start=9, morning_end=12)
+        result = compute_profile({}, 50, SUNNY_FORECAST, 12, battery_state=0.50, config=config)
+        elo, ehi = _level(config.level_evening, config)
+        for h in [9, 10, 11]:
+            assert result.max_val[h] == pytest.approx(ehi)
+            assert "Morning" in result.reasons[h]
+        # Hour 8 is no longer in the morning window → plain daytime
+        llo, lhi = _level(config.level_low, config)
+        assert result.max_val[8] == pytest.approx(lhi)
+        assert "Daytime" in result.reasons[8]
 
 
 class TestConfigBatteryThresholds:

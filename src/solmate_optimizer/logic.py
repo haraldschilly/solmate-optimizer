@@ -20,9 +20,19 @@ Decision priority (level assignment):
   4. Price > P75 AND battery OK AND no sun AND not nighttime → medium
   4. Price > P75 AND battery OK AND evening AND battery < HIGH_THRESHOLD → medium
      (nighttime skips priority 4 entirely — no solar production, battery must be preserved)
-  5. Middle prices, night → night
-  5. Middle prices, daytime (nighttime_end to evening_start, default 08:00–17:59) → low
-  5. Middle prices, evening (evening_start to nighttime_start, default 18:00–22:59) → evening
+  5. Middle prices, night (default 00:00–07:59) → night
+  5. Middle prices, morning (morning_start to morning_end, default 08:00–09:59):
+       sun expected → evening level (export PV early at decent prices to keep battery
+       headroom for the midday glut); no sun → low (let PV charge)
+  5. Middle prices, daytime (morning_end to evening_start, default 10:00–17:59) → low
+  5. Middle prices, evening (evening_start to nighttime_start, default 18:00–23:59) → evening
+
+The morning export rule is gated on the sun-expected forecast: on a sunny day the
+battery refills from the midday PV peak, so exporting the morning production at the
+morning price beats letting it top the battery off early (which forces the SolMate to
+dump the midday surplus to the grid at low/negative prices, since it always exports
+when full). On a cloudy day the morning is treated as normal daytime so the battery
+is preserved for the evening.
 
 Price-based rules (1 and 2) always win over battery protection: even a low battery
 should not inject when prices are negative or very cheap.
@@ -42,12 +52,14 @@ def parse_level(value: str) -> tuple[float, float]:
 @dataclass(frozen=True)
 class OptimizerConfig:
     """All tunable parameters for the decision engine."""
-    battery_low_threshold: float = 0.25
+    battery_low_threshold: float = 0.20
     battery_high_threshold: float = 0.75
     cloud_sun_threshold: int = 60
     max_watts: float = 800.0
-    nighttime_start: int = 23  # inclusive
+    nighttime_start: int = 24  # inclusive; 24 = night begins at midnight (evening runs to 23:59)
     nighttime_end: int = 8     # exclusive
+    morning_start: int = 8     # inclusive (morning export window start)
+    morning_end: int = 10      # exclusive
     evening_start: int = 18    # inclusive (evening runs from here to nighttime_start)
 
     # Named injection levels as (min_watts, max_watts) pairs
@@ -61,6 +73,10 @@ class OptimizerConfig:
         if self.evening_start > self.nighttime_start:
             raise ValueError(
                 f"evening_start ({self.evening_start}) must be <= nighttime_start ({self.nighttime_start})"
+            )
+        if self.morning_start > self.morning_end:
+            raise ValueError(
+                f"morning_start ({self.morning_start}) must be <= morning_end ({self.morning_end})"
             )
         for name in ("night", "low", "evening", "medium", "high"):
             lo, hi = getattr(self, f"level_{name}")
@@ -95,7 +111,8 @@ def _is_night_hour(hour: int, config: OptimizerConfig) -> bool:
     """Return True if *hour* falls in the configured nighttime window.
 
     The window wraps around midnight: nighttime_start is inclusive,
-    nighttime_end is exclusive. Default "23,8" → hours 23, 0–7.
+    nighttime_end is exclusive. Default "24,8" → hours 0–7 (24 = night
+    begins at midnight, so the evening band can run through 23:59).
     """
     return hour >= config.nighttime_start or hour < config.nighttime_end
 
@@ -155,6 +172,7 @@ def compute_profile(
     for hour in range(24):
         price = prices_by_hour.get(hour)
         is_evening = config.evening_start <= hour < config.nighttime_start
+        is_morning = config.morning_start <= hour < config.morning_end
 
         # --- Priority 1: Negative price → zero ---
         if price is not None and price < 0:
@@ -211,6 +229,11 @@ def compute_profile(
             min_val[hour] = lo
             max_val[hour] = hi
             reasons[hour] = "Evening consumption"
+        elif is_morning and sun_coming:
+            lo, hi = _level(config.level_evening, config)
+            min_val[hour] = lo
+            max_val[hour] = hi
+            reasons[hour] = "Morning export (sun expected)"
         else:
             lo, hi = _level(config.level_low, config)
             min_val[hour] = lo

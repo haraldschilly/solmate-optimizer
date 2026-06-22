@@ -65,17 +65,21 @@ Named power levels (all configurable via env / CLI):
 |----------|-----------|-------|-----------|
 | 1 | Price < 0 (negative) | zero | Grid pays consumers to take power — never inject |
 | 2 | Price below P25 of 24 h | zero | Electricity is cheap, save battery for when it matters |
-| 3 | Battery < 25 % | low | Protect battery regardless of price |
+| 3 | Battery < 20 % | low | Protect battery regardless of price |
 | 4 | Price above P75 + battery OK + sun expected + not nighttime | high | Inject hard when it pays off and battery can recharge |
 | 4 | Price above P75 + battery OK + no sun + not nighttime | medium | Price is high but can't recharge — be cautious |
-| 4 | Price above P75 + battery 25–75 % + evening | medium | High price but below high threshold — moderate injection, spread over time |
-| 5 | Middle prices, night (default 23:00–07:59) | night | Baseload (fridge, standby); no solar production |
-| 5 | Middle prices, daytime (default 08:00–17:59) | low | Let PV charge the battery |
-| 5 | Middle prices, evening (default 18:00–22:59) | evening | Cover active household consumption |
+| 4 | Price above P75 + battery 20–75 % + evening | medium | High price but below high threshold — moderate injection, spread over time |
+| 5 | Middle prices, night (default 00:00–07:59) | night | Baseload (fridge, standby); no solar production |
+| 5 | Middle prices, morning (default 08:00–09:59) + sun expected | evening | Export PV early at decent prices to keep battery headroom for the midday glut |
+| 5 | Middle prices, morning (default 08:00–09:59) + no sun | low | Cloudy morning — let PV charge, preserve battery for the evening |
+| 5 | Middle prices, daytime (default 10:00–17:59) | low | Let PV charge the battery |
+| 5 | Middle prices, evening (default 18:00–23:59) | evening | Cover active household consumption |
 
-Priority 4 is intentionally skipped during nighttime: there is no solar production overnight, so injecting aggressively would drain the battery before the sun rises. The nighttime window defaults to 23:00–07:59 and is configurable via `--nighttime` / `NIGHTTIME`. The evening start defaults to 18:00 and is configurable via `--evening-start` / `EVENING_START`.
+Priority 4 is intentionally skipped during nighttime: there is no solar production overnight, so injecting aggressively would drain the battery before the sun rises. The nighttime window defaults to 00:00–07:59 (`--nighttime` / `NIGHTTIME`, default `24,8` — `24` means night begins at midnight). The morning export window defaults to 08:00–09:59 (`--morning` / `MORNING`, default `8,10`) and is only active on sunny days; the evening start defaults to 18:00 (`--evening-start` / `EVENING_START`) and now runs through to midnight.
 
-During **evening hours** priority 4 distinguishes two battery bands. If the battery is at or above `BATTERY_HIGH_THRESHOLD` (default 75 %), the full power level applies. If the battery is between `BATTERY_LOW_THRESHOLD` (25 %) and `BATTERY_HIGH_THRESHOLD` (75 %), the **medium** level is used — the high price still warrants more than pure baseload, but without solar recharging available it makes sense not to drain the battery too aggressively.
+The **morning export** band (priority 5) addresses a quirk of the hardware: when the battery is full, the SolMate exports surplus PV to the grid regardless of the profile. On a sunny day the battery would otherwise fill from morning PV and then be forced to dump the strong midday production at the day's lowest (often negative) prices. By exporting the morning production early — at the better morning prices — the battery stays lower into midday and can instead *absorb* that midday peak. The rule is gated on the sun-expected forecast, so on a cloudy day the morning simply lets PV charge and the battery is kept for the evening.
+
+During **evening hours** priority 4 distinguishes two battery bands. If the battery is at or above `BATTERY_HIGH_THRESHOLD` (default 75 %), the full power level applies. If the battery is between `BATTERY_LOW_THRESHOLD` (20 %) and `BATTERY_HIGH_THRESHOLD` (75 %), the **medium** level is used — the high price still warrants more than pure baseload, but without solar recharging available it makes sense not to drain the battery too aggressively.
 
 Price-based rules (priorities 1 and 2) always win over battery protection: even a low battery should not inject when prices are negative or very cheap.
 
@@ -125,11 +129,12 @@ All configuration is via environment variables and/or CLI options. CLI options o
 | `LOCATION_LATLON` | `--location` | `48.2:16.32` | Latitude and longitude as `lat:lon` (default: Vienna) |
 | `TIMEZONE` | `--timezone` | `Europe/Vienna` | Timezone for price/weather hour matching and display (use IANA names, e.g. `Europe/Berlin`) |
 | `SOLMATE_PROFILE_NAME` | `--profile-name` | `dynamic` | Name of the injection profile to create/update |
-| `BATTERY_LOW_THRESHOLD` | `--battery-low` | `0.25` | Battery fraction (0–1) below which injection is throttled |
+| `BATTERY_LOW_THRESHOLD` | `--battery-low` | `0.20` | Battery fraction (0–1) below which injection is throttled |
 | `BATTERY_HIGH_THRESHOLD` | `--battery-high` | `0.75` | Battery fraction (0–1) required for high-price injection during evening hours |
 | `CLOUD_SUN_THRESHOLD` | `--cloud-sun-threshold` | `60` | Forecast cloud % below which "sun expected" for recharging |
 | `MAX_WATTS` | `--max-watts` | `800` | SolMate max injection capacity in watts |
-| `NIGHTTIME` | `--nighttime` | `23,8` | Nighttime window as `start,end` (inclusive start, exclusive end, wraps midnight) |
+| `NIGHTTIME` | `--nighttime` | `24,8` | Nighttime window as `start,end` (inclusive start, exclusive end, wraps midnight; `24` = night starts at midnight) |
+| `MORNING` | `--morning` | `8,10` | Morning export window as `start,end` (inclusive start, exclusive end); uses the evening level on sunny days, otherwise lets PV charge |
 | `EVENING_START` | `--evening-start` | `18` | First evening hour (inclusive). Evening runs from here to nighttime start. |
 | `LEVEL_NIGHT` | `--level-night` | `30,80` | Night/baseload injection level as `min,max` watts |
 | `LEVEL_LOW` | `--level-low` | `0,50` | Low injection level as `min,max` watts (battery protection, daytime) |
@@ -137,7 +142,7 @@ All configuration is via environment variables and/or CLI options. CLI options o
 | `LEVEL_MEDIUM` | `--level-medium` | `100,200` | Medium injection level as `min,max` watts (high price, no sun) |
 | `LEVEL_HIGH` | `--level-high` | `200,400` | High injection level as `min,max` watts (high price, sun expected) |
 
-Level values are validated: min must be ≤ max, min ≥ 0, max ≤ `MAX_WATTS`, and `EVENING_START` ≤ nighttime start.
+Level values are validated: min must be ≤ max, min ≥ 0, max ≤ `MAX_WATTS`, `EVENING_START` ≤ nighttime start, and morning start ≤ morning end.
 
 ## Run
 
