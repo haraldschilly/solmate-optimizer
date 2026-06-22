@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.7.0] - 2026-06-22
+
 ### Added
 - **Morning export window** (priority 5): a short configurable window (default 08:00–09:59, `MORNING` / `--morning`) that, *only on days when sun is expected*, injects at the evening level to export morning PV at decent prices and keep battery headroom for the midday solar glut. On cloudy days the morning is treated as normal daytime so the battery is preserved for the evening. This works around the SolMate exporting surplus PV to the grid whenever the battery is full, which would otherwise dump the midday peak at the day's lowest (often negative) prices.
 
@@ -85,7 +87,8 @@ Initial public release.
 - GitHub Actions release workflow using PyPI trusted publishing (OIDC).
 - GCP Cloud Run deployment instructions (`DEPLOYMENT.md`).
 
-[Unreleased]: https://github.com/haraldschilly/solmate-optimizer/compare/v0.6.0...HEAD
+[Unreleased]: https://github.com/haraldschilly/solmate-optimizer/compare/v0.7.0...HEAD
+[0.7.0]: https://github.com/haraldschilly/solmate-optimizer/compare/v0.6.0...v0.7.0
 [0.6.0]: https://github.com/haraldschilly/solmate-optimizer/compare/v0.5.1...v0.6.0
 [0.5.1]: https://github.com/haraldschilly/solmate-optimizer/compare/v0.4.0...v0.5.1
 [0.4.0]: https://github.com/haraldschilly/solmate-optimizer/compare/v0.3.0...v0.4.0
