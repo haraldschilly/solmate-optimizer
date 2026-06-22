@@ -26,14 +26,20 @@ When prices go negative, the grid operator is paying consumers to *take* electri
 
 The battery can be damaged by repeatedly running it to empty. Two thresholds guard against this:
 
-- **Low threshold (default 25%)**: below this, only a trickle is allowed regardless of price.
+- **Low threshold (default 20%)**: below this, only a trickle is allowed regardless of price. The SolMate's own hardware protection shuts the battery down at 10%, so 20% keeps a comfortable safety margin above that floor while still letting the optimizer use most of the (roughly 1 kWh) battery.
 - **High threshold (default 75%)**: used during evening hours to decide between *medium* and *high* injection (see below).
 
 The price rules (priorities 1 and 2) sit above battery protection in the priority order. When the battery is low, the optimizer normally allows a small trickle injection rather than cutting to zero — on the theory that covering some household load is better than nothing. But if prices are negative or below P25, that trickle is cut to zero as well. There is no point sending stored power to the grid when electricity is cheap or the grid is already oversupplied.
 
 ## Night: no solar, no aggressive injection
 
-From roughly 23:00 to 08:00, there is no sun. Injecting aggressively overnight would drain the battery before it can recharge. The optimizer drops to a minimal baseload level — enough to cover the fridge and standby power, nothing more. This window is configurable (`NIGHTTIME`).
+From roughly 00:00 to 08:00, there is no sun. Injecting aggressively overnight would drain the battery before it can recharge. The optimizer drops to a minimal baseload level — enough to cover the fridge and standby power, nothing more. This window is configurable (`NIGHTTIME`). If the battery falls below the low threshold (20%) during the night, the battery-protection rule (priority 3) takes over and reduces injection even further.
+
+## Morning: export early on sunny days
+
+The SolMate has a quirk worth designing around: when its battery is full, it exports surplus solar to the grid no matter what — the injection profile cannot stop it. On a clear day the battery fills from the morning sun and is then forced to dump the strong midday production onto the grid at the day's *lowest* prices (often zero or negative, because everyone else's solar is flooding the grid at the same time).
+
+To avoid this, the optimizer treats a short morning window (default 08:00–09:59) like the evening **but only when sun is expected that day**: it exports the morning production at the better morning prices, which keeps the battery lower heading into midday so it can *absorb* the midday peak instead of spilling it. On a cloudy day there is no glut to prepare for, so the morning is left as normal daytime and the battery is preserved for the evening. The window is configurable (`MORNING`).
 
 ## "Sun expected": deciding between cautious and bold
 
@@ -57,7 +63,7 @@ The resulting average is therefore a blend of today's remaining afternoon and to
 
 ## Evening: the transition zone
 
-The period from (default) 18:00 to 22:59 sits between daytime and night. A few things are different in the evening:
+The period from (default) 18:00 to 23:59 sits between daytime and night. A few things are different in the evening:
 
 - **No more solar charging** — whatever is in the battery is what you have.
 - **Household consumption peaks** — cooking, TV, lights are all on.
@@ -66,7 +72,7 @@ The period from (default) 18:00 to 22:59 sits between daytime and night. A few t
 The optimizer therefore uses a dedicated "evening" level for middle prices. For high prices during the evening, it distinguishes two battery bands:
 
 - **Battery ≥ 75% (high threshold)**: inject at the full *high* level.
-- **Battery 25–75%**: use the *medium* level — the price is worth something, but not worth draining the battery completely before morning.
+- **Battery 20–75%**: use the *medium* level — the price is worth something, but not worth draining the battery completely before morning.
 
 This avoids waking up to a flat battery on a cloudy day.
 
